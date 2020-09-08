@@ -41,6 +41,14 @@ public:
   ///                   around
   BoundingBoxTree(const std::vector<Eigen::Vector3d>& points);
 
+  /// Constructor
+  /// @param[in] mesh The mesh for building the bounding box tree
+  /// @param[in] tdim The topological dimension of the mesh entities to
+  ///                 by the bounding box tree for
+  /// @param[in] entities List of mesh entities
+  BoundingBoxTree(const mesh::Mesh& mesh, int tdim,
+                  Eigen::Array<std::int32_t, Eigen::Dynamic, 1> entities);
+
   /// Move constructor
   BoundingBoxTree(BoundingBoxTree&& tree) = default;
 
