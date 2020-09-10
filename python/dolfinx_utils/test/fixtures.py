@@ -72,6 +72,9 @@ def _create_tempdir(request):
         # e.g. test_foo_tempdir/test_something__3
         if not os.path.exists(path):
             os.mkdir(path)
+
+        if not os.path.exists(path):
+            os.mkdir(path)
     comm.Barrier()
 
     return path
