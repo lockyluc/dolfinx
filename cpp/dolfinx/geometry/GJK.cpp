@@ -206,8 +206,13 @@ Eigen::Vector3d geometry::compute_distance_gjk(
     s.conservativeResize(s.rows() + 1, 3);
     s.bottomRows(1) = w.transpose();
 
+    Eigen::Vector3d dv = v;
     // Find nearest subset of simplex
     std::tie(s, v) = nearest_simplex(s);
+    dv -= v;
+    // Break if no significant change in v
+    if (dv.squaredNorm() < eps)
+      break;
 
     // 2nd exit condition - intersecting or touching
     if (v.squaredNorm() < eps * eps)
