@@ -23,7 +23,11 @@ build-documentation-cpp: &build-documentation-cpp
 
 configure-cpp: &configure-cpp
   name: Configure (C++)
-  command: mkdir -p build && cd build && cmake -G Ninja -DCMAKE_BUILD_TYPE=Developer ../cpp/
+  command: |
+    export DOLFINX_VERSION=2019.1.0
+    mkdir -p build
+    cd build
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Developer ../cpp/
 
 build-install-cpp: &build-install-cpp
   name: Build and install (C++)
