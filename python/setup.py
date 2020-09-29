@@ -3,6 +3,7 @@ import platform
 import re
 import subprocess
 import sys
+import pkgconfig
 from distutils.version import LooseVersion
 
 from setuptools import Extension, setup
@@ -12,14 +13,16 @@ if sys.version_info < (3, 5):
     print("Python 3.5 or higher required, please upgrade.")
     sys.exit(1)
 
-VERSION = "2019.2.0.dev0"
-RESTRICT_REQUIREMENTS = ">=2019.2.0.dev0,<2019.3"
+pkgconfig_define_macros = {k: v for k, v in pkgconfig.parse("dolfinx")['define_macros']}
+VERSION = pkgconfig_define_macros['DOLFINX_VERSION']
+
+RESTRICT_REQUIREMENTS = ">=" + VERSION
 
 REQUIREMENTS = [
     "numpy",
     "mpi4py",
     "petsc4py",
-    "fenics-ffcx",
+    "fenics-ffcx{}".format(RESTRICT_REQUIREMENTS),
     "fenics-ufl{}".format(RESTRICT_REQUIREMENTS),
 ]
 

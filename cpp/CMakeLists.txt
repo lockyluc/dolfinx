@@ -5,7 +5,30 @@ cmake_minimum_required(VERSION 3.12)
 #------------------------------------------------------------------------------
 # Set project name and version number
 
-project(DOLFINX VERSION 2019.2.9.99)
+# Get version from git tags
+find_program(GIT_FOUND git)
+if (GIT_FOUND)
+execute_process(COMMAND git describe --abbrev=0
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  OUTPUT_VARIABLE DOLFINX_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
+
+# If not in get tags, then get from an environment variable
+# FIXME: can we emulate the setuptools_scm approach and grep up the filename path
+# to look for a version
+if (NOT DOLFINX_VERSION AND DEFINED ENV{DOLFINX_VERSION})
+  set(DOLFINX_VERSION $ENV{DOLFINX_VERSION})
+endif()
+
+if (DOLFINX_VERSION)
+message(STATUS "Got VERSION: ${DOLFINX_VERSION}")
+else()
+message(CMAKE_FATAL_ERROR "\n\n*************************************************\nNo VERSION found. Version is usually extracted from the git tags in the repository. It may be that this install has no git history (e.g. install from .tar.gz), in which case the version can be specified manually by setting the DOLFINX_VERSION environment variable.\n*************************************************\n")
+endif()
+
+
+project(DOLFINX VERSION ${DOLFINX_VERSION})
 
 #------------------------------------------------------------------------------
 # Set CMake options, see `cmake --help-policy CMP000x`
@@ -30,8 +53,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 #------------------------------------------------------------------------------
 # Get GIT changeset, if available
-
-find_program(GIT_FOUND git)
 if (GIT_FOUND)
   # Get the commit hash of the working branch
   execute_process(COMMAND git rev-parse HEAD
