@@ -62,6 +62,7 @@ build-python-interface: &build-python-interface
   name: Build Python/pybind11 interface
   command: |
     cd python
+    pip3 install pkgconfig wheel
     pip3 -v install . --user
 
 build-documentation-python: &build-documentation-python
