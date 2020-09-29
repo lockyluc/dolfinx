@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.12)
 #------------------------------------------------------------------------------
 # Set project name and version number
 
-# Get version from git tags
+# Get version from git tags if possible
 find_program(GIT_FOUND git)
 if (GIT_FOUND)
 execute_process(COMMAND git describe --abbrev=0
@@ -14,9 +14,21 @@ execute_process(COMMAND git describe --abbrev=0
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
 
-# If not in get tags, then get from an environment variable
-# FIXME: can we emulate the setuptools_scm approach and grep up the filename path
-# to look for a version
+# Search up path checking name like "dolfinx-xxxx.xx.xx" for VERSION
+if (NOT DOLFINX_VERSION)
+  set (DNAME ${CMAKE_CURRENT_SOURCE_DIR})
+  while(NOT DNAME STREQUAL "/")
+    get_filename_component(FNAME ${DNAME} NAME)
+    get_filename_component(DNAME ${DNAME} DIRECTORY)
+    string(REGEX MATCH "^dolfinx-([0-9]+\\.[0-9]+\\.[0-9]+)" MATCH ${FNAME})
+    if (MATCH)
+      set (DOLFINX_VERSION ${CMAKE_MATCH_1})
+      break()
+    endif()
+  endwhile()
+endif()
+
+# If not in git tags or directory name, then get from an environment variable
 if (NOT DOLFINX_VERSION AND DEFINED ENV{DOLFINX_VERSION})
   set(DOLFINX_VERSION $ENV{DOLFINX_VERSION})
 endif()
