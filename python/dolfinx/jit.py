@@ -100,7 +100,7 @@ def ffcx_jit(ufl_object, form_compiler_parameters={}, jit_parameters={}):
 
     """
     # Prepare form compiler parameters with overrides from dolfinx
-    p = ffcx.default_parameters()
+    p = ffcx.get_parameters()
     p["scalar_type"] = "double complex" if common.has_petsc_complex else "double"
     p.update(form_compiler_parameters)
 
