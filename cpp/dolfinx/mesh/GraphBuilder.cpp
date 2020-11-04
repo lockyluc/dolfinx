@@ -22,6 +22,117 @@ using namespace dolfinx;
 namespace
 {
 
+[[maybe_unused]] std::vector<std::vector<std::int32_t>>
+compute_local_dual_graph_impl(
+    const graph::AdjacencyList<std::int64_t>& cell_vertices,
+    const mesh::CellType& cell_type, const int sharing_dim)
+{
+  const int tdim = mesh::cell_dim(cell_type);
+
+  if (sharing_dim < 0 || sharing_dim >= tdim)
+    throw std::runtime_error("Sharing dim should be less");
+
+  common::Timer timer("Compute local part of mesh dual graph -  proposal");
+
+  const std::int32_t num_local_cells = cell_vertices.num_nodes();
+  const std::int32_t num_local_vertices = cell_vertices.array().maxCoeff() + 1;
+
+  // Number of vertices that have to be shared so an edge (in the dual graph) is
+  // estabilished between two cells
+  const int num_vertices_per_entity
+      = mesh::num_cell_vertices(mesh::cell_entity_type(cell_type, sharing_dim));
+  const int num_vertices_per_cell
+      = mesh::num_cell_vertices(mesh::cell_entity_type(cell_type, tdim));
+
+  // Transpose cell_vertices graph
+  std::vector<std::int32_t> offsets(num_local_vertices + 1);
+  std::int32_t n_verts_ext = num_local_cells * num_vertices_per_cell;
+
+  std::vector<std::int32_t> cell_count(num_local_vertices);
+  auto& verts = cell_vertices.array();
+  for (std::int32_t i = 0; i < n_verts_ext; i++)
+    cell_count[verts[i]]++;
+
+  std::exclusive_scan(cell_count.begin(), cell_count.end(), offsets.begin(), 0);
+  offsets[num_local_vertices] = n_verts_ext;
+
+  std::fill(cell_count.begin(), cell_count.end(), 0);
+  std::vector<std::int32_t> array(offsets.back());
+
+  for (std::int32_t i = 0; i < num_local_cells; i++)
+  {
+    const auto& verts = cell_vertices.links(i);
+    for (int j = 0; j < num_vertices_per_cell; ++j)
+    {
+      std::int32_t vert = verts[j];
+      array[offsets[vert] + cell_count[vert]] = i;
+      cell_count[vert]++;
+    }
+  }
+
+  graph::AdjacencyList<std::int32_t> vert_cells(array, offsets);
+
+  cell_count.resize(num_local_cells);
+  std::fill(cell_count.begin(), cell_count.end(), 0);
+
+  for (std::int32_t i = 0; i < num_local_vertices; i++)
+  {
+    const auto& cells = vert_cells.links(i);
+    int num_cells_vert = cells.size();
+    for (std::int32_t j = 0; j < num_cells_vert; j++)
+      cell_count[cells[j]] += num_cells_vert;
+  }
+
+  offsets.resize(num_local_cells + 1);
+  std::exclusive_scan(cell_count.begin(), cell_count.end(), offsets.begin(), 0);
+  offsets[num_local_cells] = cell_count.back() + offsets[num_local_cells - 1];
+  array.resize(offsets.back());
+
+  std::fill(cell_count.begin(), cell_count.end(), 0);
+
+  for (std::int32_t i = 0; i < num_local_vertices; i++)
+  {
+    const auto& cells = vert_cells.links(i);
+    int num_cells_vert = cells.size();
+    for (std::int32_t j = 0; j < num_cells_vert; j++)
+    {
+      std::int32_t offset = offsets[cells[j]];
+      auto& local_pos = cell_count[cells[j]];
+      for (std::int32_t k = 0; k < num_cells_vert; k++)
+        array[offset + local_pos++] = cells[k];
+    }
+  }
+
+  std::vector<std::vector<std::int32_t>> local_graph(num_local_cells);
+  for (std::int32_t i = 0; i < num_local_cells; i++)
+  {
+    auto cell_begin = array.begin() + offsets[i];
+    auto cell_end = array.begin() + offsets[i + 1];
+
+    std::sort(cell_begin, cell_end);
+
+    auto iter = cell_begin;
+    while (iter != cell_end)
+    {
+      auto next = std::upper_bound(iter, cell_end, *iter);
+      int rep = std::distance(iter, next);
+      if (rep >= num_vertices_per_entity && *iter != i)
+        local_graph[i].push_back(*iter);
+      iter = next;
+    }
+  }
+
+  for (auto cell_cell : local_graph)
+  {
+    std::cout << std::endl;
+    for (auto cell : cell_cell)
+      std::cout << cell << " ";
+  }
+  std::cout << std::endl;
+
+  return local_graph;
+}
+
 //-----------------------------------------------------------------------------
 // Compute local part of the dual graph, and return return (local_graph,
 // facet_cell_map, number of local edges in the graph (undirected)
@@ -129,6 +240,13 @@ compute_local_dual_graph_keyed(
                                   facets[k].first.end()),
         cell_index);
   }
+
+  // for (auto cell_cell : local_graph)
+  // {
+  //   std::cout << std::endl;
+  //   for (auto cell : cell_cell)
+  //     std::cout << cell << " ";
+  // }
 
   return {std::move(local_graph), std::move(facet_cell_map), num_local_edges};
 }
@@ -329,6 +447,8 @@ dolfinx::mesh::GraphBuilder::compute_local_dual_graph(
   const int tdim = mesh::cell_dim(cell_type);
   const int num_entity_vertices
       = mesh::num_cell_vertices(mesh::cell_entity_type(cell_type, tdim - 1));
+
+  compute_local_dual_graph_impl(cell_vertices, cell_type, tdim - 1);
 
   switch (num_entity_vertices)
   {
