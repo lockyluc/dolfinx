@@ -7,6 +7,7 @@ set(HEADERS_graph
   ${CMAKE_CURRENT_SOURCE_DIR}/ParMETIS.h
   ${CMAKE_CURRENT_SOURCE_DIR}/Partitioning.h
   ${CMAKE_CURRENT_SOURCE_DIR}/SCOTCH.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utils.h
   PARENT_SCOPE)
 
 target_sources(dolfinx PRIVATE

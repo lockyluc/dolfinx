@@ -5,17 +5,20 @@
 // SPDX-License-Identifier:    LGPL-3.0-or-later
 
 #include "GraphBuilder.h"
+
 #include <algorithm>
 #include <boost/unordered_map.hpp>
-#include <dolfinx/common/MPI.h>
-#include <dolfinx/common/Timer.h>
-#include <dolfinx/common/log.h>
-#include <dolfinx/graph/AdjacencyList.h>
-#include <dolfinx/mesh/cell_types.h>
 #include <set>
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+#include <dolfinx/common/MPI.h>
+#include <dolfinx/common/Timer.h>
+#include <dolfinx/common/log.h>
+#include <dolfinx/graph/AdjacencyList.h>
+#include <dolfinx/graph/utils.h>
+#include <dolfinx/mesh/cell_types.h>
 
 using namespace dolfinx;
 
@@ -41,39 +44,12 @@ compute_local_dual_graph_impl(
   // estabilished between two cells
   const int num_vertices_per_entity
       = mesh::num_cell_vertices(mesh::cell_entity_type(cell_type, sharing_dim));
-  const int num_vertices_per_cell
-      = mesh::num_cell_vertices(mesh::cell_entity_type(cell_type, tdim));
 
-  // Transpose cell_vertices graph
-  std::vector<std::int32_t> offsets(num_local_vertices + 1);
-  std::int32_t n_verts_ext = num_local_cells * num_vertices_per_cell;
+  auto vert_cells = dolfinx::graph::transpose<std::int64_t>(cell_vertices);
 
-  std::vector<std::int32_t> cell_count(num_local_vertices);
-  auto& verts = cell_vertices.array();
-  for (std::int32_t i = 0; i < n_verts_ext; i++)
-    cell_count[verts[i]]++;
-
-  std::exclusive_scan(cell_count.begin(), cell_count.end(), offsets.begin(), 0);
-  offsets[num_local_vertices] = n_verts_ext;
-
-  std::fill(cell_count.begin(), cell_count.end(), 0);
-  std::vector<std::int32_t> array(offsets.back());
-
-  for (std::int32_t i = 0; i < num_local_cells; i++)
-  {
-    const auto& verts = cell_vertices.links(i);
-    for (int j = 0; j < num_vertices_per_cell; ++j)
-    {
-      std::int32_t vert = verts[j];
-      array[offsets[vert] + cell_count[vert]] = i;
-      cell_count[vert]++;
-    }
-  }
-
-  graph::AdjacencyList<std::int32_t> vert_cells(array, offsets);
-
-  cell_count.resize(num_local_cells);
-  std::fill(cell_count.begin(), cell_count.end(), 0);
+  std::vector<int32_t> array;
+  std::vector<int32_t> cell_count(num_local_cells);
+  std::vector<int32_t> offsets(num_local_cells + 1);
 
   for (std::int32_t i = 0; i < num_local_vertices; i++)
   {
@@ -86,8 +62,8 @@ compute_local_dual_graph_impl(
   offsets.resize(num_local_cells + 1);
   std::exclusive_scan(cell_count.begin(), cell_count.end(), offsets.begin(), 0);
   offsets[num_local_cells] = cell_count.back() + offsets[num_local_cells - 1];
-  array.resize(offsets.back());
 
+  array.resize(offsets.back());
   std::fill(cell_count.begin(), cell_count.end(), 0);
 
   for (std::int32_t i = 0; i < num_local_vertices; i++)
