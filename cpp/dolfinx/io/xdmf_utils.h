@@ -12,7 +12,6 @@
 #include <array>
 #include <dolfinx/common/utils.h>
 #include <dolfinx/mesh/cell_types.h>
-#include <petscsys.h>
 #include <string>
 #include <utility>
 #include <vector>
@@ -59,15 +58,6 @@ std::vector<std::int64_t> get_dataset_shape(const pugi::xml_node& dataset_node);
 
 /// Get number of cells from an XML Topology node
 std::int64_t get_num_cells(const pugi::xml_node& topology_node);
-
-/// Get point data values for linear or quadratic mesh into flattened 2D
-/// array
-std::vector<PetscScalar>
-get_point_data_values(const function::Function<PetscScalar>& u);
-
-/// Get cell data values as a flattened 2D array
-std::vector<PetscScalar>
-get_cell_data_values(const function::Function<PetscScalar>& u);
 
 /// Get the VTK string identifier
 std::string vtk_cell_type_str(mesh::CellType cell_type, int num_nodes);
@@ -158,6 +148,7 @@ void add_data_item(pugi::xml_node& xml_node, const hid_t h5_id,
     // HDF5Interface::add_attribute(h5_id, h5_path, "partition", partitions);
   }
 }
+//----------------------------------------------------------------------------
 
 } // namespace io::xdmf_utils
 } // namespace dolfinx

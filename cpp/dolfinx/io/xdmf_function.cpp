@@ -23,8 +23,130 @@ using namespace dolfinx::io;
 
 namespace
 {
+// Get data width - normally the same as u.value_size(), but expand for
+// 2D vector/tensor because XDMF presents everything as 3D
+template <typename T>
+int get_padded_width(const function::Function<T>& u)
+{
+  const int width = u.function_space()->element()->value_size();
+  const int rank = u.function_space()->element()->value_rank();
+  if (rank == 1 and width == 2)
+    return 3;
+  else if (rank == 2 and width == 4)
+    return 9;
+  return width;
+}
 //-----------------------------------------------------------------------------
+template <typename T>
+std::vector<T> get_point_data_values(const function::Function<T>& u)
+{
+  std::shared_ptr<const mesh::Mesh> mesh = u.function_space()->mesh();
+  assert(mesh);
+  Eigen::Array<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> data_values
+      = u.compute_point_values();
 
+  const int width = get_padded_width(u);
+  assert(mesh->geometry().index_map());
+  const int num_local_points = mesh->geometry().index_map()->size_local();
+  assert(data_values.rows() >= num_local_points);
+  data_values.conservativeResize(num_local_points, Eigen::NoChange);
+
+  // FIXME: Unpick the below code for the new layout of data from
+  //        GenericFunction::compute_vertex_values
+  std::vector<T> _data_values(width * num_local_points, 0.0);
+  const int value_rank = u.function_space()->element()->value_rank();
+  if (value_rank > 0)
+  {
+    // Transpose vector/tensor data arrays
+    const int value_size = u.function_space()->element()->value_size();
+    for (int i = 0; i < num_local_points; i++)
+    {
+      for (int j = 0; j < value_size; j++)
+      {
+        int tensor_2d_offset
+            = (j > 1 && value_rank == 2 && value_size == 4) ? 1 : 0;
+        _data_values[i * width + j + tensor_2d_offset] = data_values(i, j);
+      }
+    }
+  }
+  else
+  {
+    _data_values = std::vector<T>(
+        data_values.data(),
+        data_values.data() + data_values.rows() * data_values.cols());
+  }
+
+  return _data_values;
+}
+//-----------------------------------------------------------------------------
+template <typename T>
+std::vector<T> get_cell_data_values(const function::Function<T>& u)
+{
+  assert(u.function_space()->dofmap());
+  const auto mesh = u.function_space()->mesh();
+  const int value_size = u.function_space()->element()->value_size();
+  const int value_rank = u.function_space()->element()->value_rank();
+
+  // Allocate memory for function values at cell centres
+  const int tdim = mesh->topology().dim();
+  const std::int32_t num_local_cells
+      = mesh->topology().index_map(tdim)->size_local();
+  const std::int32_t local_size = num_local_cells * value_size;
+
+  // Build lists of dofs and create map
+  std::vector<std::int32_t> dof_set;
+  dof_set.reserve(local_size);
+  const auto dofmap = u.function_space()->dofmap();
+  assert(dofmap->element_dof_layout);
+  const int ndofs = dofmap->element_dof_layout->num_dofs();
+
+  for (int cell = 0; cell < num_local_cells; ++cell)
+  {
+    // Tabulate dofs
+    auto dofs = dofmap->cell_dofs(cell);
+    assert(ndofs == value_size);
+    for (int i = 0; i < ndofs; ++i)
+      dof_set.push_back(dofs[i]);
+  }
+
+  // Get values
+  std::vector<T> data_values(dof_set.size());
+  {
+    const Eigen::Matrix<T, Eigen::Dynamic, 1>& x = u.x()->array();
+    for (std::size_t i = 0; i < dof_set.size(); ++i)
+      data_values[i] = x[dof_set[i]];
+  }
+
+  if (value_rank == 1 && value_size == 2)
+  {
+    // Pad out data for 2D vector to 3D
+    data_values.resize(3 * num_local_cells);
+    for (int j = (num_local_cells - 1); j >= 0; --j)
+    {
+      T nd[3] = {data_values[j * 2], data_values[j * 2 + 1], 0};
+      std::copy(nd, nd + 3, &data_values[j * 3]);
+    }
+  }
+  else if (value_rank == 2 && value_size == 4)
+  {
+    data_values.resize(9 * num_local_cells);
+    for (int j = (num_local_cells - 1); j >= 0; --j)
+    {
+      T nd[9] = {data_values[j * 4],
+                 data_values[j * 4 + 1],
+                 0,
+                 data_values[j * 4 + 2],
+                 data_values[j * 4 + 3],
+                 0,
+                 0,
+                 0,
+                 0};
+      std::copy(nd, nd + 9, &data_values[j * 9]);
+    }
+  }
+  return data_values;
+}
+//-----------------------------------------------------------------------------
 // Convert a value_rank to the XDMF string description (Scalar, Vector,
 // Tensor)
 std::string rank_to_string(int value_rank)
@@ -42,9 +164,9 @@ std::string rank_to_string(int value_rank)
   }
 }
 //-----------------------------------------------------------------------------
-
 /// Returns true for DG0 function::Functions
-bool has_cell_centred_data(const function::Function<PetscScalar>& u)
+template <typename T>
+bool has_cell_centred_data(const function::Function<T>& u)
 {
   int cell_based_dim = 1;
   const int rank = u.function_space()->element()->value_rank();
@@ -57,27 +179,31 @@ bool has_cell_centred_data(const function::Function<PetscScalar>& u)
   return (u.function_space()->dofmap()->element_dof_layout->num_dofs()
           == cell_based_dim);
 }
-//-----------------------------------------------------------------------------
 
-// Get data width - normally the same as u.value_size(), but expand for
-// 2D vector/tensor because XDMF presents everything as 3D
-int get_padded_width(const function::Function<PetscScalar>& u)
+template <typename T>
+bool is_complex()
 {
-  const int width = u.function_space()->element()->value_size();
-  const int rank = u.function_space()->element()->value_rank();
-  if (rank == 1 and width == 2)
-    return 3;
-  else if (rank == 2 and width == 4)
-    return 9;
-  return width;
+  return false;
 }
-//-----------------------------------------------------------------------------
 
+template <>
+bool is_complex<std::complex<double>>()
+{
+  return true;
+}
+
+template <>
+bool is_complex<std::complex<float>>()
+{
+  return true;
+}
+
+//-----------------------------------------------------------------------------
 } // namespace
 
 //-----------------------------------------------------------------------------
-void xdmf_function::add_function(MPI_Comm comm,
-                                 const function::Function<PetscScalar>& u,
+template <typename T>
+void xdmf_function::add_function(MPI_Comm comm, const function::Function<T>& u,
                                  const double t, pugi::xml_node& xml_node,
                                  const hid_t h5_id)
 {
@@ -88,12 +214,12 @@ void xdmf_function::add_function(MPI_Comm comm,
   assert(mesh);
 
   // Get function::Function data values and shape
-  std::vector<PetscScalar> data_values;
+  std::vector<T> data_values;
   const bool cell_centred = has_cell_centred_data(u);
   if (cell_centred)
-    data_values = xdmf_utils::get_cell_data_values(u);
+    data_values = get_cell_data_values(u);
   else
-    data_values = xdmf_utils::get_point_data_values(u);
+    data_values = get_point_data_values(u);
 
   auto map_c = mesh->topology().index_map(mesh->topology().dim());
   assert(map_c);
@@ -109,11 +235,9 @@ void xdmf_function::add_function(MPI_Comm comm,
 
   const int value_rank = u.function_space()->element()->value_rank();
 
-#ifdef PETSC_USE_COMPLEX
-  const std::vector<std::string> components = {"real", "imag"};
-#else
-  const std::vector<std::string> components = {""};
-#endif
+  std::vector<std::string> components = {""};
+  if (is_complex<T>())
+    components = {"real", "imag"};
 
   std::string t_str = boost::lexical_cast<std::string>(t);
   std::replace(t_str.begin(), t_str.end(), '.', '_');
@@ -141,33 +265,38 @@ void xdmf_function::add_function(MPI_Comm comm,
     attribute_node.append_attribute("Center") = cell_centred ? "Cell" : "Node";
 
     const bool use_mpi_io = (dolfinx::MPI::size(comm) > 1);
-#ifdef PETSC_USE_COMPLEX
-    // FIXME: Avoid copies by writing directly a compound data
-    std::vector<double> component_data_values(data_values.size());
-    if (component == "real")
-    {
-      for (std::size_t i = 0; i < data_values.size(); i++)
-        component_data_values[i] = data_values[i].real();
-    }
-    else if (component == "imag")
-    {
-      for (std::size_t i = 0; i < data_values.size(); i++)
-        component_data_values[i] = data_values[i].imag();
-    }
 
-    // Add data item of component
-    const std::int64_t offset = dolfinx::MPI::global_offset(
-        comm, component_data_values.size() / width, true);
-    xdmf_utils::add_data_item(attribute_node, h5_id, dataset_name,
-                              component_data_values, offset,
-                              {num_values, width}, "", use_mpi_io);
-#else
-    // Add data item
-    const std::int64_t offset
-        = dolfinx::MPI::global_offset(comm, data_values.size() / width, true);
-    xdmf_utils::add_data_item(attribute_node, h5_id, dataset_name, data_values,
-                              offset, {num_values, width}, "", use_mpi_io);
-#endif
+    if (is_complex<T>())
+    {
+      // FIXME: Avoid copies by writing directly a compound data
+      std::vector<double> component_data_values(data_values.size());
+      if (component == "real")
+      {
+        for (std::size_t i = 0; i < data_values.size(); i++)
+          component_data_values[i] = data_values[i].real();
+      }
+      else if (component == "imag")
+      {
+        for (std::size_t i = 0; i < data_values.size(); i++)
+          component_data_values[i] = data_values[i].imag();
+      }
+
+      // Add data item of component
+      const std::int64_t offset = dolfinx::MPI::global_offset(
+          comm, component_data_values.size() / width, true);
+      xdmf_utils::add_data_item(attribute_node, h5_id, dataset_name,
+                                component_data_values, offset,
+                                {num_values, width}, "", use_mpi_io);
+    }
+    else
+    {
+      // Add data item
+      const std::int64_t offset
+          = dolfinx::MPI::global_offset(comm, data_values.size() / width, true);
+      xdmf_utils::add_data_item(attribute_node, h5_id, dataset_name,
+                                data_values, offset, {num_values, width}, "",
+                                use_mpi_io);
+    }
   }
 }
 //-----------------------------------------------------------------------------
