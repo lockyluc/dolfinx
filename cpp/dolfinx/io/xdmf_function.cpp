@@ -181,21 +181,26 @@ bool has_cell_centred_data(const function::Function<T>& u)
 }
 
 template <typename T>
-bool is_complex()
+std::vector<std::vector<double>>
+get_component_data_values(const std::vector<T>& v)
 {
-  return false;
+  // FIXME: avoid copy somehow
+  std::vector<std::vector<double>> c = {v};
+  return c;
 }
 
 template <>
-bool is_complex<std::complex<double>>()
+std::vector<std::vector<double>>
+get_component_data_values(const std::vector<std::complex<double>>& v)
 {
-  return true;
-}
-
-template <>
-bool is_complex<std::complex<float>>()
-{
-  return true;
+  std::vector<std::vector<double>> c(2);
+  c[0].resize(v.size());
+  c[1].resize(v.size());
+  for (std::size_t i = 0; i < v.size(); i++)
+    c[0][i] = v[i].real();
+  for (std::size_t i = 0; i < v.size(); i++)
+    c[1][i] = v[i].imag();
+  return c;
 }
 
 //-----------------------------------------------------------------------------
@@ -235,27 +240,25 @@ void xdmf_function::add_function(MPI_Comm comm, const function::Function<T>& u,
 
   const int value_rank = u.function_space()->element()->value_rank();
 
+  std::vector<std::vector<double>> component_data
+      = get_component_data_values(data_values);
   std::vector<std::string> components = {""};
-  if (is_complex<T>())
+  if (component_data.size() == 2)
     components = {"real", "imag"};
 
   std::string t_str = boost::lexical_cast<std::string>(t);
   std::replace(t_str.begin(), t_str.end(), '.', '_');
 
-  for (const auto& component : components)
+  for (std::size_t i = 0; i < component_data.size(); ++i)
   {
     std::string attr_name;
-    std::string dataset_name;
-    if (component.empty())
-    {
+    if (components[i].empty())
       attr_name = u.name;
-      dataset_name = "/Function/" + attr_name + "/" + t_str;
-    }
     else
-    {
-      attr_name = component + "_" + u.name;
-      dataset_name = "/Function/" + attr_name + "/" + t_str;
-    }
+      attr_name = components[i] + "_" + u.name;
+
+    std::string dataset_name = "/Function/" + attr_name + "/" + t_str;
+
     // Add attribute node
     pugi::xml_node attribute_node = xml_node.append_child("Attribute");
     assert(attribute_node);
@@ -266,37 +269,20 @@ void xdmf_function::add_function(MPI_Comm comm, const function::Function<T>& u,
 
     const bool use_mpi_io = (dolfinx::MPI::size(comm) > 1);
 
-    if (is_complex<T>())
-    {
-      // FIXME: Avoid copies by writing directly a compound data
-      std::vector<double> component_data_values(data_values.size());
-      if (component == "real")
-      {
-        for (std::size_t i = 0; i < data_values.size(); i++)
-          component_data_values[i] = data_values[i].real();
-      }
-      else if (component == "imag")
-      {
-        for (std::size_t i = 0; i < data_values.size(); i++)
-          component_data_values[i] = data_values[i].imag();
-      }
-
-      // Add data item of component
-      const std::int64_t offset = dolfinx::MPI::global_offset(
-          comm, component_data_values.size() / width, true);
-      xdmf_utils::add_data_item(attribute_node, h5_id, dataset_name,
-                                component_data_values, offset,
-                                {num_values, width}, "", use_mpi_io);
-    }
-    else
-    {
-      // Add data item
-      const std::int64_t offset
-          = dolfinx::MPI::global_offset(comm, data_values.size() / width, true);
-      xdmf_utils::add_data_item(attribute_node, h5_id, dataset_name,
-                                data_values, offset, {num_values, width}, "",
-                                use_mpi_io);
-    }
+    // Add data item of component
+    const std::int64_t offset = dolfinx::MPI::global_offset(
+        comm, component_data[i].size() / width, true);
+    xdmf_utils::add_data_item(attribute_node, h5_id, dataset_name,
+                              component_data[i], offset, {num_values, width},
+                              "", use_mpi_io);
   }
 }
 //-----------------------------------------------------------------------------
+
+// Explicit instantiation
+template void xdmf_function::add_function<double>(
+    MPI_Comm comm, const function::Function<double>& u, const double t,
+    pugi::xml_node& xml_node, const hid_t h5_id);
+template void xdmf_function::add_function<std::complex<double>>(
+    MPI_Comm comm, const function::Function<std::complex<double>>& u,
+    const double t, pugi::xml_node& xml_node, const hid_t h5_id);
