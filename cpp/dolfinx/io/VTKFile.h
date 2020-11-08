@@ -7,7 +7,6 @@
 #pragma once
 
 #include <fstream>
-#include <petscsys.h>
 #include <string>
 #include <utility>
 #include <vector>
@@ -51,13 +50,15 @@ public:
   void write(const mesh::Mesh& mesh);
 
   /// Output function::Function
-  void write(const function::Function<PetscScalar>& u);
+  template <typename T>
+  void write_f(const function::Function<T>& u);
 
   /// Output mesh::Mesh and timestep
   void write(const mesh::Mesh& mesh, double t);
 
   /// Output function::Function and timestep
-  void write(const function::Function<PetscScalar>& u, double t);
+  template <typename T>
+  void write_f(const function::Function<T>& u, double t);
 
 private:
   const std::string _filename;

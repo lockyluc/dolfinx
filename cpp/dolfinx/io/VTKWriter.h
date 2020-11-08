@@ -7,7 +7,6 @@
 #pragma once
 
 #include <cstdint>
-#include <petscsys.h>
 #include <string>
 #include <vector>
 
@@ -36,8 +35,8 @@ public:
                          std::string file);
 
   /// Cell data writer
-  static void write_cell_data(const function::Function<PetscScalar>& u,
-                              std::string file);
+  template <typename T>
+  static void write_cell_data(const function::Function<T>& u, std::string file);
 };
 } // namespace io
 } // namespace dolfinx

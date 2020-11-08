@@ -13,7 +13,6 @@
 #include <dolfinx/common/MPI.h>
 #include <dolfinx/mesh/cell_types.h>
 #include <memory>
-#include <petscsys.h>
 #include <string>
 
 namespace pugi

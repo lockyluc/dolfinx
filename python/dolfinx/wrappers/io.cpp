@@ -111,11 +111,11 @@ void io(py::module& m)
            py::arg("filename"))
       .def("write",
            py::overload_cast<const dolfinx::function::Function<PetscScalar>&>(
-               &dolfinx::io::VTKFile::write),
+                                                                              &dolfinx::io::VTKFile::write_f<PetscScalar>),
            py::arg("u"))
       .def("write",
            py::overload_cast<const dolfinx::mesh::Mesh&>(
-               &dolfinx::io::VTKFile::write),
+                                                         &dolfinx::io::VTKFile::write),
            py::arg("mesh"));
 }
 } // namespace dolfinx_wrappers

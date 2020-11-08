@@ -14,7 +14,6 @@
 #include <dolfinx/function/Function.h>
 #include <dolfinx/function/FunctionSpace.h>
 #include <dolfinx/graph/AdjacencyList.h>
-#include <dolfinx/la/PETScVector.h>
 #include <dolfinx/la/utils.h>
 #include <dolfinx/mesh/Geometry.h>
 #include <dolfinx/mesh/Mesh.h>
@@ -60,10 +59,11 @@ std::int8_t get_vtk_cell_type(const mesh::Mesh& mesh, int cell_dim)
 }
 //----------------------------------------------------------------------------
 // Write cell data (ascii)
+template <typename T>
 std::string ascii_cell_data(const mesh::Mesh& mesh,
                             const std::vector<std::size_t>& offset,
-                            const std::vector<PetscScalar>& values,
-                            std::size_t data_dim, std::size_t rank)
+                            const std::vector<T>& values, std::size_t data_dim,
+                            std::size_t rank)
 {
   std::ostringstream ss;
   ss << std::scientific;
@@ -256,7 +256,8 @@ void VTKWriter::write_mesh(const mesh::Mesh& mesh, std::size_t cell_dim,
   write_ascii_mesh(mesh, cell_dim, filename);
 }
 //----------------------------------------------------------------------------
-void VTKWriter::write_cell_data(const function::Function<PetscScalar>& u,
+template <typename T>
+void VTKWriter::write_cell_data(const function::Function<T>& u,
                                 std::string filename)
 {
   assert(u.function_space());
@@ -345,8 +346,8 @@ void VTKWriter::write_cell_data(const function::Function<PetscScalar>& u,
   }
 
   // Get  values
-  std::vector<PetscScalar> values(dof_set.size());
-  const Eigen::Matrix<PetscScalar, Eigen::Dynamic, 1>& _x = u.x()->array();
+  std::vector<T> values(dof_set.size());
+  const Eigen::Matrix<T, Eigen::Dynamic, 1>& _x = u.x()->array();
   for (std::size_t i = 0; i < dof_set.size(); ++i)
     values[i] = _x[dof_set[i]];
 
