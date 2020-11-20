@@ -42,9 +42,6 @@ Mat la::create_petsc_matrix(
   const std::int32_t m = bs0 * index_maps[0]->size_local();
   const std::int32_t n = bs1 * index_maps[1]->size_local();
 
-  // Find common block size across rows/columns
-  const int bs = (bs0 == bs1 ? bs0 : 1);
-
   // Set matrix size
   ierr = MatSetSizes(A, m, n, M, N);
   if (ierr != 0)
@@ -62,14 +59,36 @@ Mat la::create_petsc_matrix(
   if (ierr != 0)
     petsc_error(ierr, __FILE__, "MatSetFromOptions");
 
-  // Build data to initialise sparsity pattern (modify for block size)
-  std::vector<PetscInt> _nnz_diag(index_maps[0]->size_local() * bs0 / bs),
-      _nnz_offdiag(index_maps[0]->size_local() * bs0 / bs);
+  // Find common block size across rows/columns
+  const int bs = (bs0 == bs1 ? bs0 : 1);
+  std::vector<PetscInt> _nnz_diag, _nnz_offdiag;
+  if (b0 == bs1)
+  {
+    _nnz_diag.resize(index_maps[0]->size_local());
+    _nnz_offdiag.resize(index_maps[0]->size_local());
+    for (std::size_t i = 0; i < _nnz_diag.size(); ++i)
+      _nnz_diag[i] = diagonal_pattern.links(i).rows();
+    for (std::size_t i = 0; i < _nnz_offdiag.size(); ++i)
+      _nnz_offdiag[i] = off_diagonal_pattern.links(i).rows();
+  }
+  else
+  {
+    // Expand for block size 1
+    _nnz_diag.resize(index_maps[0]->size_local() * bs0);
+    _nnz_offdiag.resize(index_maps[0]->size_local() * bs0);
+    for (std::size_t i = 0; i < _nnz_diag.size(); ++i)
+      _nnz_diag[i] = bs1 * diagonal_pattern.links(i / bs0).rows();
+    for (std::size_t i = 0; i < _nnz_offdiag.size(); ++i)
+      _nnz_offdiag[i] = bs1 * off_diagonal_pattern.links(i / bs0).rows();
+  }
 
-  for (std::size_t i = 0; i < _nnz_diag.size(); ++i)
-    _nnz_diag[i] = diagonal_pattern.links(bs * i).rows() / bs;
-  for (std::size_t i = 0; i < _nnz_offdiag.size(); ++i)
-    _nnz_offdiag[i] = off_diagonal_pattern.links(bs * i).rows() / bs;
+  // Build data to initialise sparsity pattern (modify for block size)
+  // std::vector<PetscInt> _nnz_diag(index_maps[0]->size_local() * bs0 / bs),
+  //     _nnz_offdiag(index_maps[0]->size_local() * bs0 / bs);
+  // for (std::size_t i = 0; i < _nnz_diag.size(); ++i)
+  //   _nnz_diag[i] = diagonal_pattern.links(bs * i).rows() / bs;
+  // for (std::size_t i = 0; i < _nnz_offdiag.size(); ++i)
+  //   _nnz_offdiag[i] = off_diagonal_pattern.links(bs * i).rows() / bs;
 
   // Allocate space for matrix
   ierr = MatXAIJSetPreallocation(A, bs, _nnz_diag.data(), _nnz_offdiag.data(),
