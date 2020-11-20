@@ -62,7 +62,7 @@ Mat la::create_petsc_matrix(
   // Find common block size across rows/columns
   const int bs = (bs0 == bs1 ? bs0 : 1);
   std::vector<PetscInt> _nnz_diag, _nnz_offdiag;
-  if (b0 == bs1)
+  if (bs0 == bs1)
   {
     _nnz_diag.resize(index_maps[0]->size_local());
     _nnz_offdiag.resize(index_maps[0]->size_local());
@@ -179,7 +179,7 @@ MatNullSpace la::create_petsc_nullspace(MPI_Comm comm,
 //-----------------------------------------------------------------------------
 std::function<int(std::int32_t, const std::int32_t*, std::int32_t,
                   const std::int32_t*, const PetscScalar*)>
-PETScMatrix::add_fn_block(Mat A)
+PETScMatrix::add_fn(Mat A)
 {
   return [A, cache = std::vector<PetscInt>()](
              std::int32_t m, const std::int32_t* rows, std::int32_t n,
