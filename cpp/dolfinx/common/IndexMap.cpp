@@ -206,7 +206,8 @@ std::tuple<std::int64_t, std::vector<std::int32_t>,
            std::vector<std::vector<std::int64_t>>,
            std::vector<std::vector<int>>>
 common::stack_index_maps(
-    const std::vector<std::reference_wrapper<const common::IndexMap>>& maps)
+    // const std::vector<std::reference_wrapper<const common::IndexMap>>& maps)
+    const std::vector<std::reference_wrapper<const common::IndexMap>>&)
 {
   throw std::runtime_error("Needs updating got block size");
   return {};
@@ -222,7 +223,8 @@ common::stack_index_maps(
   // {
   //   local_offset[f]
   //       = local_offset[f - 1]
-  //         + maps[f - 1].get().size_local() * maps[f - 1].get().block_size();
+  //         + maps[f - 1].get().size_local() * maps[f -
+  //         1].get().block_size();
   // }
 
   // // Pack old and new composite indices for owned entries that are ghost
@@ -267,9 +269,9 @@ common::stack_index_maps(
   // MPI_Dist_graph_create_adjacent(maps.at(0).get().comm(),
   // in_neighbors.size(),
   //                                in_neighbors.data(), MPI_UNWEIGHTED,
-  //                                out_neighbors.size(), out_neighbors.data(),
-  //                                MPI_UNWEIGHTED, MPI_INFO_NULL, false,
-  //                                &comm);
+  //                                out_neighbors.size(),
+  //                                out_neighbors.data(), MPI_UNWEIGHTED,
+  //                                MPI_INFO_NULL, false, &comm);
 
   // int indegree(-1), outdegree(-2), weighted(-1);
   // MPI_Dist_graph_neighbors_count(comm, &indegree, &outdegree, &weighted);

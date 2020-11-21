@@ -33,127 +33,127 @@ remap_dofs(const std::vector<std::int32_t>& old_to_new,
 }
 //-----------------------------------------------------------------------------
 // Build a collapsed DofMap from a dofmap view
-fem::DofMap build_collapsed_dofmap(MPI_Comm comm, const DofMap& dofmap_view,
-                                   const mesh::Topology& topology)
-{
-  auto element_dof_layout = std::make_shared<ElementDofLayout>(
-      dofmap_view.element_dof_layout->copy());
-  assert(element_dof_layout);
+// fem::DofMap build_collapsed_dofmap(MPI_Comm comm, const DofMap& dofmap_view,
+//                                    const mesh::Topology& topology)
+// {
+//   auto element_dof_layout = std::make_shared<ElementDofLayout>(
+//       dofmap_view.element_dof_layout->copy());
+//   assert(element_dof_layout);
 
-  // FIXME X
-  // if (dofmap_view.index_map->block_size() == 1
-  //     and element_dof_layout->block_size() > 1)
-  // {
-  //   throw std::runtime_error(
-  //       "Cannot collapse dofmap with block size greater "
-  //       "than 1 from parent with block size of 1. Create new dofmap first.");
-  // }
+//   // FIXME X
+//   // if (dofmap_view.index_map->block_size() == 1
+//   //     and element_dof_layout->block_size() > 1)
+//   // {
+//   //   throw std::runtime_error(
+//   //       "Cannot collapse dofmap with block size greater "
+//   //       "than 1 from parent with block size of 1. Create new dofmap first.");
+//   // }
 
-  // FIXME X
-  // if (dofmap_view.index_map->block_size() > 1
-  //     and element_dof_layout->block_size() > 1)
-  // {
-  //   throw std::runtime_error(
-  //       "Cannot (yet) collapse dofmap with block size greater "
-  //       "than 1 from parent with block size greater than 1. Create new dofmap
-  //       " "first.");
-  // }
+//   // FIXME X
+//   // if (dofmap_view.index_map->block_size() > 1
+//   //     and element_dof_layout->block_size() > 1)
+//   // {
+//   //   throw std::runtime_error(
+//   //       "Cannot (yet) collapse dofmap with block size greater "
+//   //       "than 1 from parent with block size greater than 1. Create new dofmap
+//   //       " "first.");
+//   // }
 
-  // Get topological dimension
-  const int tdim = topology.dim();
-  auto cells = topology.connectivity(tdim, 0);
-  assert(cells);
+//   // Get topological dimension
+//   const int tdim = topology.dim();
+//   auto cells = topology.connectivity(tdim, 0);
+//   assert(cells);
 
-  // Build set of dofs that are in the new dofmap
-  std::vector<std::int32_t> dofs_view;
-  for (int i = 0; i < cells->num_nodes(); ++i)
-  {
-    auto cell_dofs = dofmap_view.cell_dofs(i);
-    for (Eigen::Index dof = 0; dof < cell_dofs.rows(); ++dof)
-      dofs_view.push_back(cell_dofs[dof]);
-  }
-  std::sort(dofs_view.begin(), dofs_view.end());
-  dofs_view.erase(std::unique(dofs_view.begin(), dofs_view.end()),
-                  dofs_view.end());
+//   // Build set of dofs that are in the new dofmap
+//   std::vector<std::int32_t> dofs_view;
+//   for (int i = 0; i < cells->num_nodes(); ++i)
+//   {
+//     auto cell_dofs = dofmap_view.cell_dofs(i);
+//     for (Eigen::Index dof = 0; dof < cell_dofs.rows(); ++dof)
+//       dofs_view.push_back(cell_dofs[dof]);
+//   }
+//   std::sort(dofs_view.begin(), dofs_view.end());
+//   dofs_view.erase(std::unique(dofs_view.begin(), dofs_view.end()),
+//                   dofs_view.end());
 
-  // FIXME X
-  // Get block sizes
-  // const int bs_view = dofmap_view.index_map->block_size();
-  const int bs_view = dofmap_view.element_dof_layout->block_size();
+//   // FIXME X
+//   // Get block sizes
+//   // const int bs_view = dofmap_view.index_map->block_size();
+//   const int bs_view = dofmap_view.element_dof_layout->block_size();
 
-  // Compute sizes
-  const std::int32_t num_owned_view = dofmap_view.index_map->size_local();
-  const auto it_unowned0 = std::lower_bound(dofs_view.begin(), dofs_view.end(),
-                                            num_owned_view * bs_view);
-  const std::size_t num_owned = std::distance(dofs_view.begin(), it_unowned0);
-  const std::size_t num_unowned = std::distance(it_unowned0, dofs_view.end());
+//   // Compute sizes
+//   const std::int32_t num_owned_view = dofmap_view.index_map->size_local();
+//   const auto it_unowned0 = std::lower_bound(dofs_view.begin(), dofs_view.end(),
+//                                             num_owned_view * bs_view);
+//   const std::size_t num_owned = std::distance(dofs_view.begin(), it_unowned0);
+//   const std::size_t num_unowned = std::distance(it_unowned0, dofs_view.end());
 
-  // Get process offset for new dofmap
-  const std::int64_t process_offset
-      = dolfinx::MPI::global_offset(comm, num_owned, true);
+//   // Get process offset for new dofmap
+//   const std::int64_t process_offset
+//       = dolfinx::MPI::global_offset(comm, num_owned, true);
 
-  // For owned dofs, compute new global index
-  std::vector<std::int64_t> global_index(dofmap_view.index_map->size_local(),
-                                         -1);
-  for (auto it = dofs_view.begin(); it != it_unowned0; ++it)
-  {
-    const std::size_t block = std::distance(dofs_view.begin(), it);
-    const std::int32_t block_parent = *it / bs_view;
-    global_index[block_parent] = block + process_offset;
-  }
+//   // For owned dofs, compute new global index
+//   std::vector<std::int64_t> global_index(dofmap_view.index_map->size_local(),
+//                                          -1);
+//   for (auto it = dofs_view.begin(); it != it_unowned0; ++it)
+//   {
+//     const std::size_t block = std::distance(dofs_view.begin(), it);
+//     const std::int32_t block_parent = *it / bs_view;
+//     global_index[block_parent] = block + process_offset;
+//   }
 
-  // Send new global indices for owned dofs to non-owning process, and
-  // receive new global indices from owner
-  std::vector global_index_remote
-      = dofmap_view.index_map->scatter_fwd(global_index, 1);
-  const Eigen::Array<std::int32_t, Eigen::Dynamic, 1> ghost_owner_old
-      = dofmap_view.index_map->ghost_owner_rank();
+//   // Send new global indices for owned dofs to non-owning process, and
+//   // receive new global indices from owner
+//   std::vector global_index_remote
+//       = dofmap_view.index_map->scatter_fwd(global_index, 1);
+//   const Eigen::Array<std::int32_t, Eigen::Dynamic, 1> ghost_owner_old
+//       = dofmap_view.index_map->ghost_owner_rank();
 
-  // Compute ghosts for collapsed dofmap
-  Eigen::Array<std::int64_t, Eigen::Dynamic, 1> ghosts(num_unowned);
-  std::vector<int> ghost_owners(num_unowned);
-  for (auto it = it_unowned0; it != dofs_view.end(); ++it)
-  {
-    const std::int32_t index = std::distance(it_unowned0, it);
-    const std::int32_t index_old = *it / bs_view - num_owned_view;
-    assert(global_index_remote[index_old] >= 0);
-    ghosts[index] = global_index_remote[index_old];
-    ghost_owners[index] = ghost_owner_old[index_old];
-  }
+//   // Compute ghosts for collapsed dofmap
+//   Eigen::Array<std::int64_t, Eigen::Dynamic, 1> ghosts(num_unowned);
+//   std::vector<int> ghost_owners(num_unowned);
+//   for (auto it = it_unowned0; it != dofs_view.end(); ++it)
+//   {
+//     const std::int32_t index = std::distance(it_unowned0, it);
+//     const std::int32_t index_old = *it / bs_view - num_owned_view;
+//     assert(global_index_remote[index_old] >= 0);
+//     ghosts[index] = global_index_remote[index_old];
+//     ghost_owners[index] = ghost_owner_old[index_old];
+//   }
 
-  // Create new index map
-  // FIXME X
-  auto index_map = std::make_shared<common::IndexMap>(
-      comm, num_owned,
-      dolfinx::MPI::compute_graph_edges(
-          comm, std::set<int>(ghost_owners.begin(), ghost_owners.end())),
-      ghosts, ghost_owners);
+//   // Create new index map
+//   // FIXME X
+//   auto index_map = std::make_shared<common::IndexMap>(
+//       comm, num_owned,
+//       dolfinx::MPI::compute_graph_edges(
+//           comm, std::set<int>(ghost_owners.begin(), ghost_owners.end())),
+//       ghosts, ghost_owners);
 
-  // Create array from dofs in view to new dof indices
-  std::vector<std::int32_t> old_to_new(dofs_view.back() + 1, -1);
-  std::int32_t count = 0;
-  for (auto& dof : dofs_view)
-    old_to_new[dof] = count++;
+//   // Create array from dofs in view to new dof indices
+//   std::vector<std::int32_t> old_to_new(dofs_view.back() + 1, -1);
+//   std::int32_t count = 0;
+//   for (auto& dof : dofs_view)
+//     old_to_new[dof] = count++;
 
-  // Build new dofmap
-  const graph::AdjacencyList<std::int32_t>& dof_array_view = dofmap_view.list();
-  Eigen::Array<std::int32_t, Eigen::Dynamic, 1> dofmap
-      = remap_dofs(old_to_new, dof_array_view);
+//   // Build new dofmap
+//   const graph::AdjacencyList<std::int32_t>& dof_array_view = dofmap_view.list();
+//   Eigen::Array<std::int32_t, Eigen::Dynamic, 1> dofmap
+//       = remap_dofs(old_to_new, dof_array_view);
 
-  // Dimension sanity checks
-  assert(element_dof_layout);
-  assert(dofmap.rows()
-         == (cells->num_nodes() * element_dof_layout->num_dofs()));
+//   // Dimension sanity checks
+//   assert(element_dof_layout);
+//   assert(dofmap.rows()
+//          == (cells->num_nodes() * element_dof_layout->num_dofs()));
 
-  const int cell_dimension = element_dof_layout->num_dofs();
-  assert(dofmap.rows() % cell_dimension == 0);
-  Eigen::Map<Eigen::Array<std::int32_t, Eigen::Dynamic, Eigen::Dynamic,
-                          Eigen::RowMajor>>
-      _dofmap(dofmap.data(), dofmap.rows() / cell_dimension, cell_dimension);
+//   const int cell_dimension = element_dof_layout->num_dofs();
+//   assert(dofmap.rows() % cell_dimension == 0);
+//   Eigen::Map<Eigen::Array<std::int32_t, Eigen::Dynamic, Eigen::Dynamic,
+//                           Eigen::RowMajor>>
+//       _dofmap(dofmap.data(), dofmap.rows() / cell_dimension, cell_dimension);
 
-  return fem::DofMap(element_dof_layout, index_map,
-                     graph::AdjacencyList<std::int32_t>(_dofmap));
-}
+//   return fem::DofMap(element_dof_layout, index_map,
+//                      graph::AdjacencyList<std::int32_t>(_dofmap));
+// }
 
 } // namespace
 
@@ -251,7 +251,8 @@ DofMap DofMap::extract_sub_dofmap(const std::vector<int>& component) const
 }
 //-----------------------------------------------------------------------------
 std::pair<std::unique_ptr<DofMap>, std::vector<std::int32_t>>
-DofMap::collapse(MPI_Comm comm, const mesh::Topology& topology) const
+DofMap::collapse(MPI_Comm, const mesh::Topology&) const
+// DofMap::collapse(MPI_Comm comm, const mesh::Topology& topology) const
 {
   // FIXME X
   throw std::runtime_error("Needs fixing");
