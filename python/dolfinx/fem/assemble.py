@@ -34,7 +34,7 @@ def _create_cpp_form(form):
 
 
 def create_vector(L: typing.Union[Form, cpp.fem.Form]) -> PETSc.Vec:
-    return cpp.la.create_vector(_create_cpp_form(L).function_spaces[0].dofmap.index_map)
+    return cpp.la.create_vector(V.dofmap.index_map, V.element.block_size)
 
 
 def create_vector_block(L: typing.List[typing.Union[Form, cpp.fem.Form]]) -> PETSc.Vec:
@@ -83,7 +83,8 @@ def assemble_vector(L: typing.Union[Form, cpp.fem.Form]) -> PETSc.Vec:
 
     """
     _L = _create_cpp_form(L)
-    b = cpp.la.create_vector(_L.function_spaces[0].dofmap.index_map)
+    b = cpp.la.create_vector(_L.function_spaces[0].dofmap.index_map,
+                             _L.function_spaces[0].element.block_size)
     with b.localForm() as b_local:
         b_local.set(0.0)
         cpp.fem.assemble_vector(b_local.array_w, _L)

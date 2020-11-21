@@ -85,7 +85,8 @@ build_basic_dofmap(const mesh::Topology& topology,
     {
       auto map = topology.index_map(d);
       assert(map);
-      global_indices[d] = map->global_indices(false);
+      // FIXME X
+      global_indices[d] = map->global_indices();
     }
   }
 
@@ -488,8 +489,8 @@ DofMapBuilder::build(MPI_Comm comm, const mesh::Topology& topology,
 {
   common::Timer t0("Init dofmap");
 
-  const int element_block_size = element_dof_layout.block_size();
-  // const int element_block_size = 1;
+  // const int element_block_size = element_dof_layout.block_size();
+  const int element_block_size = 1;
   const int D = topology.dim();
 
   // Build a simple dofmap based on mesh entity numbering, returning (i)
@@ -533,7 +534,7 @@ DofMapBuilder::build(MPI_Comm comm, const mesh::Topology& topology,
       dolfinx::MPI::compute_graph_edges(
           comm, std::set<int>(local_to_global_owner.begin(),
                               local_to_global_owner.end())),
-      local_to_global_unowned, local_to_global_owner, element_block_size);
+      local_to_global_unowned, local_to_global_owner);
   assert(index_map);
 
   // FIXME: There is an assumption here on the dof order for an element.

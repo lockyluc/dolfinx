@@ -16,7 +16,7 @@ from mpi4py import MPI
 from petsc4py import PETSc
 
 import dolfinx
-from dolfinx import BoxMesh, DirichletBC, Function, VectorFunctionSpace, cpp
+from dolfinx import BoxMesh, RectangleMesh, DirichletBC, Function, VectorFunctionSpace, cpp
 from dolfinx.cpp.mesh import CellType
 from dolfinx.fem import (Form, apply_lifting, assemble_matrix, assemble_vector,
                          locate_dofs_geometrical, set_bc)
@@ -39,41 +39,61 @@ from ufl import (Identity, SpatialCoordinate, TestFunction, TrialFunction,
 def build_nullspace(V):
     """Function to build null space for 3D elasticity"""
 
+    bs = 3
     # Create list of vectors for null space
     index_map = V.dofmap.index_map
-    nullspace_basis = [cpp.la.create_vector(index_map) for i in range(6)]
+    nullspace_basis = [cpp.la.create_vector(index_map, bs) for i in range(6)]
+    # nullspace_basis = [cpp.la.create_vector(index_map, bs) for i in range(3)]
 
     with ExitStack() as stack:
         vec_local = [stack.enter_context(x.localForm()) for x in nullspace_basis]
         basis = [np.asarray(x) for x in vec_local]
 
+        # print(V.dofmap.element_dof_layout)
         # Build translational null space basis
-        for i in range(3):
+        for i in range(bs):
+            # print("-----------")
+            # print(basis[i])
+            # tmp = V.sub(i)
+            # print("Test: ", V.sub(i).dofmap.list.array)
             basis[i][V.sub(i).dofmap.list.array] = 1.0
 
         # Build rotational null space basis
         x = V.tabulate_dof_coordinates()
-        dofs = [V.sub(i).dofmap.list.array for i in range(3)]
-        basis[3][dofs[0]] = -x[dofs[0], 1]
-        basis[3][dofs[1]] = x[dofs[1], 0]
-        basis[4][dofs[0]] = x[dofs[0], 2]
-        basis[4][dofs[2]] = -x[dofs[2], 0]
-        basis[5][dofs[2]] = x[dofs[2], 1]
-        basis[5][dofs[1]] = -x[dofs[1], 2]
+        dofs = [V.sub(i).dofmap.list.array for i in range(bs)]
+        # print(basis[2])
+        # print(dofs[0])
+        # print(dofs[0] // bs)
+        # print(x[:, 1])
+        # basis[2][dofs[0]] = -x[dofs[0] // bs, 1]
+        # basis[2][dofs[1]] = x[dofs[1] // bs, 0]
+
+        basis[3][dofs[0]] = -x[dofs[0] // bs, 1]
+        basis[3][dofs[1]] = x[dofs[1] // bs, 0]
+        basis[4][dofs[0]] = x[dofs[0] // bs, 2]
+        basis[4][dofs[2]] = -x[dofs[2] // bs, 0]
+        basis[5][dofs[2]] = x[dofs[2] // bs, 1]
+        basis[5][dofs[1]] = -x[dofs[1] // bs, 2]
 
     # Create vector space basis and orthogonalize
+    # print(basis)
     basis = VectorSpaceBasis(nullspace_basis)
     basis.orthonormalize()
 
     _x = [basis[i] for i in range(6)]
+    # _x = [basis[i] for i in len(basis)]
     nsp = PETSc.NullSpace().create(vectors=_x)
     return nsp
 
 
 mesh = BoxMesh(
     MPI.COMM_WORLD, [np.array([0.0, 0.0, 0.0]),
-                     np.array([2.0, 1.0, 1.0])], [12, 12, 12],
+                     np.array([2.0, 1.0, 1.0])], [22, 22, 12],
     CellType.tetrahedron, dolfinx.cpp.mesh.GhostMode.none)
+# mesh = RectangleMesh(
+#     MPI.COMM_WORLD,
+#     [np.array([0, 0, 0]), np.array([1, 1, 0])], [44, 44],
+#     CellType.triangle, dolfinx.cpp.mesh.GhostMode.none)
 
 
 def boundary(x):
@@ -151,11 +171,18 @@ form = Form(a, form_compiler_parameters={"quadrature_degree": 1})
 # Assemble system, applying boundary conditions and preserving symmetry
 A = assemble_matrix(form, [bc])
 A.assemble()
+# A.view()
+# print(A.getBlockSize())
+# print("done with A")
+
+# u0.vector.view()
 
 b = assemble_vector(L)
 apply_lifting(b, [a], [[bc]])
 b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 set_bc(b, [bc])
+# b.view()
+# exit(0)
 
 # Create solution function
 u = Function(V)
@@ -163,13 +190,13 @@ u = Function(V)
 # Create near null space basis (required for smoothed aggregation AMG).
 null_space = build_nullspace(V)
 
-# Attach near nullspace to matrix
-A.setNearNullSpace(null_space)
+# # Attach near nullspace to matrix
+# A.setNearNullSpace(null_space)
 
 # Set solver options
 opts = PETSc.Options()
 opts["ksp_type"] = "cg"
-opts["ksp_rtol"] = 1.0e-12
+opts["ksp_rtol"] = 1.0e-8
 opts["pc_type"] = "gamg"
 
 # Use Chebyshev smoothing for multigrid
@@ -190,7 +217,7 @@ solver.setOperators(A)
 # Compute solution
 solver.setMonitor(lambda ksp, its, rnorm: print("Iteration: {}, rel. residual: {}".format(its, rnorm)))
 solver.solve(b, u.vector)
-solver.view()
+# solver.view()
 
 # Save solution to XDMF format
 with XDMFFile(MPI.COMM_WORLD, "elasticity.xdmf", "w") as file:

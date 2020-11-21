@@ -22,7 +22,8 @@ using namespace dolfinx::la;
 
 //-----------------------------------------------------------------------------
 Mat la::create_petsc_matrix(
-    MPI_Comm comm, const dolfinx::la::SparsityPattern& sparsity_pattern)
+    MPI_Comm comm, const dolfinx::la::SparsityPattern& sparsity_pattern,
+    std::array<int, 2> bs)
 {
   PetscErrorCode ierr;
   Mat A;
@@ -30,19 +31,20 @@ Mat la::create_petsc_matrix(
   if (ierr != 0)
     petsc_error(ierr, __FILE__, "MatCreate");
 
+  // MatSetType(A, MATBAIJ);
+
   // Get IndexMaps from sparsity patterm, and block size
   std::array index_maps{sparsity_pattern.index_map(0),
                         sparsity_pattern.index_map(1)};
-  const int bs0 = index_maps[0]->block_size();
-  const int bs1 = index_maps[1]->block_size();
 
   // Get global and local dimensions
-  const std::int64_t M = bs0 * index_maps[0]->size_global();
-  const std::int64_t N = bs1 * index_maps[1]->size_global();
-  const std::int32_t m = bs0 * index_maps[0]->size_local();
-  const std::int32_t n = bs1 * index_maps[1]->size_local();
+  const std::int64_t M = bs[0] * index_maps[0]->size_global();
+  const std::int64_t N = bs[1] * index_maps[1]->size_global();
+  const std::int32_t m = bs[0] * index_maps[0]->size_local();
+  const std::int32_t n = bs[1] * index_maps[1]->size_local();
 
   // Set matrix size
+  // std::cout << "PETSc sizes: " << M << ", " << N << std::endl;
   ierr = MatSetSizes(A, m, n, M, N);
   if (ierr != 0)
     petsc_error(ierr, __FILE__, "MatSetSizes");
@@ -60,12 +62,14 @@ Mat la::create_petsc_matrix(
     petsc_error(ierr, __FILE__, "MatSetFromOptions");
 
   // Find common block size across rows/columns
-  const int bs = (bs0 == bs1 ? bs0 : 1);
+  const int _bs = (bs[0] == bs[1] ? bs[0] : 1);
   std::vector<PetscInt> _nnz_diag, _nnz_offdiag;
-  if (bs0 == bs1)
+  if (bs[0] == bs[1])
   {
     _nnz_diag.resize(index_maps[0]->size_local());
     _nnz_offdiag.resize(index_maps[0]->size_local());
+    std::cout << "Sizes: " << _nnz_diag.size() << ", " << _nnz_offdiag.size()
+              << std::endl;
     for (std::size_t i = 0; i < _nnz_diag.size(); ++i)
       _nnz_diag[i] = diagonal_pattern.links(i).rows();
     for (std::size_t i = 0; i < _nnz_offdiag.size(); ++i)
@@ -74,24 +78,17 @@ Mat la::create_petsc_matrix(
   else
   {
     // Expand for block size 1
-    _nnz_diag.resize(index_maps[0]->size_local() * bs0);
-    _nnz_offdiag.resize(index_maps[0]->size_local() * bs0);
+    _nnz_diag.resize(index_maps[0]->size_local() * bs[0]);
+    _nnz_offdiag.resize(index_maps[0]->size_local() * bs[0]);
     for (std::size_t i = 0; i < _nnz_diag.size(); ++i)
-      _nnz_diag[i] = bs1 * diagonal_pattern.links(i / bs0).rows();
+      _nnz_diag[i] = bs[1] * diagonal_pattern.links(i / bs[0]).rows();
     for (std::size_t i = 0; i < _nnz_offdiag.size(); ++i)
-      _nnz_offdiag[i] = bs1 * off_diagonal_pattern.links(i / bs0).rows();
+      _nnz_offdiag[i] = bs[1] * off_diagonal_pattern.links(i / bs[0]).rows();
   }
 
-  // Build data to initialise sparsity pattern (modify for block size)
-  // std::vector<PetscInt> _nnz_diag(index_maps[0]->size_local() * bs0 / bs),
-  //     _nnz_offdiag(index_maps[0]->size_local() * bs0 / bs);
-  // for (std::size_t i = 0; i < _nnz_diag.size(); ++i)
-  //   _nnz_diag[i] = diagonal_pattern.links(bs * i).rows() / bs;
-  // for (std::size_t i = 0; i < _nnz_offdiag.size(); ++i)
-  //   _nnz_offdiag[i] = off_diagonal_pattern.links(bs * i).rows() / bs;
-
   // Allocate space for matrix
-  ierr = MatXAIJSetPreallocation(A, bs, _nnz_diag.data(), _nnz_offdiag.data(),
+  std::cout << "BlocksPETSc sizes: " << _bs << std::endl;
+  ierr = MatXAIJSetPreallocation(A, _bs, _nnz_diag.data(), _nnz_offdiag.data(),
                                  nullptr, nullptr);
   if (ierr != 0)
     petsc_error(ierr, __FILE__, "MatXIJSetPreallocation");
@@ -100,19 +97,18 @@ Mat la::create_petsc_matrix(
   // local-to-global map
 
   // Create PETSc local-to-global map/index set
-  const bool blocked = (bs0 == bs1 ? true : false);
-  const std::vector _map0 = index_maps[0]->global_indices(blocked);
-  const std::vector _map1 = index_maps[1]->global_indices(blocked);
+  const std::vector _map0 = index_maps[0]->global_indices();
+  const std::vector _map1 = index_maps[1]->global_indices();
   const std::vector<PetscInt> map0(_map0.begin(), _map0.end());
   const std::vector<PetscInt> map1(_map1.begin(), _map1.end());
 
   ISLocalToGlobalMapping petsc_local_to_global0, petsc_local_to_global1;
-  ierr = ISLocalToGlobalMappingCreate(MPI_COMM_SELF, bs, map0.size(),
+  ierr = ISLocalToGlobalMappingCreate(MPI_COMM_SELF, bs[0], map0.size(),
                                       map0.data(), PETSC_COPY_VALUES,
                                       &petsc_local_to_global0);
   if (ierr != 0)
     petsc_error(ierr, __FILE__, "ISLocalToGlobalMappingCreate");
-  ierr = ISLocalToGlobalMappingCreate(MPI_COMM_SELF, bs, map1.size(),
+  ierr = ISLocalToGlobalMappingCreate(MPI_COMM_SELF, bs[1], map1.size(),
                                       map1.data(), PETSC_COPY_VALUES,
                                       &petsc_local_to_global1);
   if (ierr != 0)
@@ -125,7 +121,7 @@ Mat la::create_petsc_matrix(
     petsc_error(ierr, __FILE__, "MatSetLocalToGlobalMappingXXX");
 
   // Note: This should be called after having set the local-to-global
-  // map for MATIS (this is a dummy call if A is not of type MATIS)
+  //   map for MATIS (this is a dummy call if A is not of type MATIS)
   ierr = MatISSetPreallocation(A, 0, _nnz_diag.data(), 0, _nnz_offdiag.data());
   if (ierr != 0)
     petsc_error(ierr, __FILE__, "MatISSetPreallocation");
@@ -145,6 +141,8 @@ Mat la::create_petsc_matrix(
   ierr = MatSetOption(A, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
   if (ierr != 0)
     petsc_error(ierr, __FILE__, "MatSetOption");
+
+  std::cout << "Done " << std::endl;
 
   return A;
 }
@@ -192,6 +190,14 @@ PETScMatrix::add_fn(Mat A)
     const PetscInt *_rows = cache.data(), *_cols = _rows + m;
     ierr = MatSetValuesLocal(A, m, _rows, n, _cols, vals, ADD_VALUES);
 #else
+    // std::cout << "Insert: rows, cols: " << m << ", " << n << std::endl;
+    // for (int i = 0; i < m; ++i)
+    //   std::cout << "  rows: " << rows[i] << std::endl;
+    // for (int i = 0; i < n; ++i)
+    //   std::cout << "  cols: " << cols[i] << std::endl;
+    // std::cout << "data" << std::endl;
+    // for (int i = 0; i < 4 * m * n; ++i)
+    //   std::cout << "  cols: " << vals[i] << std::endl;
     ierr = MatSetValuesLocal(A, m, rows, n, cols, vals, ADD_VALUES);
 #endif
 
@@ -229,8 +235,9 @@ PETScMatrix::add_fn_block(Mat A)
   };
 }
 //-----------------------------------------------------------------------------
-PETScMatrix::PETScMatrix(MPI_Comm comm, const SparsityPattern& sparsity_pattern)
-    : PETScOperator(create_petsc_matrix(comm, sparsity_pattern), false)
+PETScMatrix::PETScMatrix(MPI_Comm comm, const SparsityPattern& sparsity_pattern,
+                         std::array<int, 2> bs)
+    : PETScOperator(create_petsc_matrix(comm, sparsity_pattern, bs), false)
 {
   // Do nothing
 }

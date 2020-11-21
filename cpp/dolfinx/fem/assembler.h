@@ -101,16 +101,16 @@ void assemble_matrix(
 
   // Index maps for dof ranges
   auto map0 = a.function_spaces().at(0)->dofmap()->index_map;
+  auto bs0 = a.function_spaces().at(0)->element()->block_size();
   auto map1 = a.function_spaces().at(1)->dofmap()->index_map;
+  auto bs1 = a.function_spaces().at(1)->element()->block_size();
 
   // Build dof markers
   std::vector<bool> dof_marker0, dof_marker1;
   assert(map0);
-  std::int32_t dim0
-      = map0->block_size() * (map0->size_local() + map0->num_ghosts());
+  std::int32_t dim0 = bs0 * (map0->size_local() + map0->num_ghosts());
   assert(map1);
-  std::int32_t dim1
-      = map1->block_size() * (map1->size_local() + map1->num_ghosts());
+  std::int32_t dim1 = bs1 * (map1->size_local() + map1->num_ghosts());
   for (std::size_t k = 0; k < bcs.size(); ++k)
   {
     assert(bcs[k]);
@@ -167,12 +167,15 @@ void add_diagonal(
     const std::function<int(std::int32_t, const std::int32_t*, std::int32_t,
                             const std::int32_t*, const T*)>& mat_add,
     const Eigen::Ref<const Eigen::Array<std::int32_t, Eigen::Dynamic, 1>>& rows,
-    T diagonal = 1.0)
+    int block_size, T diagonal = 1.0)
 {
   for (Eigen::Index i = 0; i < rows.size(); ++i)
   {
-    const std::int32_t row = rows(i);
-    mat_add(1, &row, 1, &row, &diagonal);
+    for (int k = 0; k < block_size; ++k)
+    {
+      const std::int32_t row = block_size * rows(i) + k;
+      mat_add(1, &row, 1, &row, &diagonal);
+    }
   }
 }
 
@@ -203,7 +206,11 @@ void add_diagonal(
   {
     assert(bc);
     if (V.contains(*bc->function_space()))
-      add_diagonal<T>(mat_add, bc->dofs_owned().col(0), diagonal);
+    {
+      std::cout << "Add diagnonal" << std::endl;
+      const int bs = bc->function_space()->element()->block_size();
+      add_diagonal<T>(mat_add, bc->dofs_owned().col(0), bs, diagonal);
+    }
   }
 }
 

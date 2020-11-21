@@ -63,12 +63,12 @@ SparsityPattern::SparsityPattern(
       comm, local_offset0.back(),
       dolfinx::MPI::compute_graph_edges(
           comm, std::set<int>(ghost_owners0.begin(), ghost_owners0.end())),
-      ghosts0, ghost_owners0, 1);
+      ghosts0, ghost_owners0);
   _index_maps[1] = std::make_shared<common::IndexMap>(
       comm, local_offset1.back(),
       dolfinx::MPI::compute_graph_edges(
           comm, std::set<int>(ghost_owners1.begin(), ghost_owners1.end())),
-      ghosts1, ghost_owners1, 1);
+      ghosts1, ghost_owners1);
 
   // Size cache arrays
   const std::int32_t size_row = local_offset0.back() + ghosts0.size();

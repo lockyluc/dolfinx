@@ -44,12 +44,10 @@ internal_tabulate_dof_coordinates(
   std::shared_ptr<const common::IndexMap> index_map = dofmap->index_map;
   assert(index_map);
 
-  int bs = index_map->block_size();
+  // int bs = index_map->block_size();
   int element_block_size = element->block_size();
 
-  std::int32_t local_size
-      = bs * (index_map->size_local() + index_map->num_ghosts())
-        / element_block_size;
+  std::int32_t local_size = index_map->size_local() + index_map->num_ghosts();
   const int scalar_dofs = element->space_dimension() / element_block_size;
 
   // Dof coordinate on reference element
@@ -99,17 +97,7 @@ internal_tabulate_dof_coordinates(
 
     // Copy dof coordinates into vector
     for (Eigen::Index i = 0; i < scalar_dofs; ++i)
-    {
-      // FIXME: this depends on the dof layout
-      for (int j = 0; j < repeats; ++j)
-      {
-        x.row(dofs[i * element_block_size] / element_block_size * repeats + j)
-            .head(gdim)
-            = coordinates.row(i);
-      }
-      // TODO: cell_dofs should return values for scalar subspace, rather than
-      // fixing that here.
-    }
+      x.row(dofs[i]).head(gdim) = coordinates.row(i);
   }
 
   return x;
@@ -147,7 +135,7 @@ std::int64_t FunctionSpace::dim() const
   }
 
   assert(_dofmap->index_map);
-  return _dofmap->index_map->size_global() * _dofmap->index_map->block_size();
+  return _dofmap->index_map->size_global() * _element->block_size();
 }
 //-----------------------------------------------------------------------------
 std::shared_ptr<FunctionSpace>
@@ -222,8 +210,9 @@ FunctionSpace::tabulate_dof_coordinates() const
         "Cannot tabulate coordinates for a FunctionSpace that is a subspace.");
   }
 
-  return internal_tabulate_dof_coordinates(_mesh, _element, _dofmap,
-                                           _element->block_size());
+  // return internal_tabulate_dof_coordinates(_mesh, _element, _dofmap,
+  //                                          _element->block_size());
+  return internal_tabulate_dof_coordinates(_mesh, _element, _dofmap, 1);
 }
 //-----------------------------------------------------------------------------
 Eigen::Array<double, Eigen::Dynamic, 3, Eigen::RowMajor>

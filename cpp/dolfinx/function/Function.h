@@ -46,7 +46,8 @@ public:
   /// @param[in] V The function space
   explicit Function(std::shared_ptr<const FunctionSpace> V)
       : _id(common::UniqueIdGenerator::id()), _function_space(V),
-        _x(std::make_shared<la::Vector<T>>(V->dofmap()->index_map))
+        _x(std::make_shared<la::Vector<T>>(V->dofmap()->index_map,
+                                           V->element()->block_size()))
   {
     if (!V->component().empty())
     {
@@ -69,11 +70,12 @@ public:
     // We do not check for a subspace since this constructor is used for
     // creating subfunctions
 
+    // FIXME
     // Assertion uses '<=' to deal with sub-functions
-    assert(V->dofmap());
-    assert(V->dofmap()->index_map->size_global()
-               * V->dofmap()->index_map->block_size()
-           <= _x->map()->block_size() * _x->map()->size_global());
+    // assert(V->dofmap());
+    // assert(V->dofmap()->index_map->size_global()
+    //            * V->dofmap()->index_map->block_size()
+    //        <= _x->map()->block_size() * _x->map()->size_global());
   }
 
   // Copy constructor
@@ -130,8 +132,9 @@ public:
 
     // Create new vector
     assert(function_space_new);
+    const int bs = function_space_new->element()->block_size();
     auto vector_new = std::make_shared<la::Vector<T>>(
-        function_space_new->dofmap()->index_map);
+        function_space_new->dofmap()->index_map, bs);
 
     // Copy values into new vector
     const Eigen::Matrix<T, Eigen::Dynamic, 1>& x_old = _x->array();
@@ -159,15 +162,18 @@ public:
   Vec vector() const
   {
     // Check that this is not a sub function
-    assert(_function_space->dofmap());
-    assert(_function_space->dofmap()->index_map);
-    if (_x->map()->block_size() * _x->map()->size_global()
-        != _function_space->dofmap()->index_map->size_global()
-               * _function_space->dofmap()->index_map->block_size())
-    {
-      throw std::runtime_error(
-          "Cannot access a non-const vector from a subfunction");
-    }
+
+    // TODO: fix this
+    // assert(_function_space->dofmap());
+    // assert(_function_space->dofmap()->index_map);
+    // const int bs = _function_space->element()->block_size();
+    // if (_x->map()->block_size() * _x->map()->size_global()
+    //     != _function_space->dofmap()->index_map->size_global()
+    //            * _function_space->dofmap()->index_map->block_size())
+    // {
+    //   throw std::runtime_error(
+    //       "Cannot access a non-const vector from a subfunction");
+    // }
 
     // Check that data type is the same as the PETSc build
     if constexpr (std::is_same<T, PetscScalar>::value)
@@ -175,7 +181,8 @@ public:
       if (!_petsc_vector)
       {
         _petsc_vector = la::create_ghosted_vector(
-            *_function_space->dofmap()->index_map, _x->array());
+            *_function_space->dofmap()->index_map,
+            _function_space->element()->block_size(), _x->array());
       }
       return _petsc_vector;
     }
@@ -266,20 +273,22 @@ public:
     std::shared_ptr<const fem::FiniteElement> element
         = _function_space->element();
     assert(element);
-    const int block_size = element->block_size();
-    const int reference_value_size
-        = element->reference_value_size() / block_size;
-    const int value_size = element->value_size() / block_size;
-    const int space_dimension = element->space_dimension() / block_size;
+    const int bs = element->block_size();
+    const int reference_value_size = element->reference_value_size() / bs;
+    const int value_size = element->value_size() / bs;
+    const int space_dimension = element->space_dimension() / bs;
 
-    // If the space has sub elements, concatenate the evaluations on the sub
-    // elements
+    // If the space has sub elements, concatenate the evaluations on the
+    // sub elements
     const int num_sub_elements = element->num_sub_elements();
-    if (num_sub_elements > 1 && num_sub_elements != block_size)
+    if (num_sub_elements > 1 and num_sub_elements != bs)
     {
-      if (block_size != 1)
+      if (bs != 1)
+      {
         throw std::runtime_error(
             "Blocked elements of mixed spaces are not yet supported.");
+      }
+
       int offset = 0;
       for (int sub_e = 0; sub_e < num_sub_elements; ++sub_e)
       {
@@ -296,8 +305,10 @@ public:
           u.col(offset + i) = sub_u.col(i);
         offset += sub_value_size;
       }
+
       return;
     }
+
     // Prepare geometry data structures
     Eigen::Tensor<double, 3, Eigen::RowMajor> J(1, gdim, tdim);
     Eigen::Array<double, Eigen::Dynamic, 1> detJ(1);
@@ -312,8 +323,7 @@ public:
                                                            value_size);
 
     // Create work vector for expansion coefficients
-    Eigen::Matrix<T, 1, Eigen::Dynamic> coefficients(space_dimension
-                                                     * block_size);
+    Eigen::Matrix<T, 1, Eigen::Dynamic> coefficients(space_dimension * bs);
 
     // Get dofmap
     std::shared_ptr<const fem::DofMap> dofmap = _function_space->dofmap();
@@ -353,18 +363,21 @@ public:
       // Get degrees of freedom for current cell
       auto dofs = dofmap->cell_dofs(cell_index);
       for (Eigen::Index i = 0; i < dofs.size(); ++i)
-        coefficients[i] = _v[dofs[i]];
+        for (int k = 0; k < bs; ++k)
+          coefficients[bs * i + k] = _v[bs * dofs[i] + k];
+      // for (Eigen::Index i = 0; i < dofs.size(); ++i)
+      //   coefficients[i] = _v[dofs[i]];
 
       // Compute expansion
-      for (int block = 0; block < block_size; ++block)
+      for (int block = 0; block < bs; ++block)
       {
         for (int i = 0; i < space_dimension; ++i)
         {
           for (int j = 0; j < value_size; ++j)
           {
             // TODO: Find an Eigen shortcut for this operation
-            u.row(p)[j * block_size + block]
-                += coefficients[i * block_size + block] * basis_values(0, i, j);
+            u.row(p)[j * bs + block]
+                += coefficients[i * bs + block] * basis_values(0, i, j);
           }
         }
       }

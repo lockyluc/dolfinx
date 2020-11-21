@@ -117,8 +117,7 @@ public:
     // Stack indices as columns, fits column-major _dofs layout
     _dofs.col(0) = dofs;
     _dofs.col(1) = dofs;
-    const int owned_size = _function_space->dofmap()->index_map->block_size()
-                           * _function_space->dofmap()->index_map->size_local();
+    const int owned_size = _function_space->dofmap()->index_map->size_local();
     auto* it = std::lower_bound(_dofs.col(0).data(),
                                 _dofs.col(0).data() + _dofs.rows(), owned_size);
     _owned_indices = std::distance(_dofs.col(0).data(), it);
@@ -140,8 +139,8 @@ public:
       std::shared_ptr<const function::FunctionSpace> V)
       : _function_space(V), _g(g), _dofs(V_g_dofs)
   {
-    const int owned_size = _function_space->dofmap()->index_map->block_size()
-                           * _function_space->dofmap()->index_map->size_local();
+    // TODO: check block sizes for g and V_g
+    const int owned_size = _function_space->dofmap()->index_map->size_local();
     auto* it = std::lower_bound(_dofs.col(0).data(),
                                 _dofs.col(0).data() + _dofs.rows(), owned_size);
     _owned_indices = std::distance(_dofs.col(0).data(), it);
@@ -176,14 +175,15 @@ public:
   /// @return The boundary values Function
   std::shared_ptr<const function::Function<T>> value() const { return _g; }
 
-  /// Get array of dof indices to which a Dirichlet boundary condition
-  /// is applied. The array is sorted and may contain ghost entries.
+  /// Get array of dof block indices to which a Dirichlet boundary
+  /// condition is applied. The array is sorted and may contain ghost
+  /// entries.
   const Eigen::Array<std::int32_t, Eigen::Dynamic, 2>& dofs() const
   {
     return _dofs;
   }
 
-  /// Get array of dof indices owned by this process to which a
+  /// Get array of dof block indices owned by this process to which a
   /// Dirichlet BC is applied. The array is sorted and does not contain
   /// ghost entries.
   const Eigen::Ref<const Eigen::Array<std::int32_t, Eigen::Dynamic, 2>>
@@ -200,10 +200,16 @@ public:
     // FIXME: This one excludes ghosts. Need to straighten out.
     assert(_g);
     auto& g = _g->x()->array();
+    const int bs = _function_space->element()->block_size();
     for (Eigen::Index i = 0; i < _dofs.rows(); ++i)
     {
-      if (_dofs(i, 0) < x.rows())
-        x[_dofs(i, 0)] = scale * g[_dofs(i, 1)];
+      for (int k = 0; k < bs; ++k)
+      {
+        if (bs * _dofs(i, 0) + k < x.rows())
+          x[bs * _dofs(i, 0) + k] = scale * g[bs * _dofs(i, 1) + k];
+      }
+      // if (_dofs(i, 0) < x.rows())
+      //   x[_dofs(i, 0)] = scale * g[_dofs(i, 1)];
     }
   }
 
@@ -216,11 +222,18 @@ public:
     // FIXME: This one excludes ghosts. Need to straighten out.
     assert(_g);
     auto& g = _g->x()->array();
+    const int bs = _function_space->element()->block_size();
     assert(x.rows() <= x0.rows());
     for (Eigen::Index i = 0; i < _dofs.rows(); ++i)
     {
-      if (_dofs(i, 0) < x.rows())
-        x[_dofs(i, 0)] = scale * (g[_dofs(i, 1)] - x0[_dofs(i, 0)]);
+      if (bs * _dofs(i, 0) < x.rows())
+      {
+        for (int j = 0; j < bs; ++j)
+        {
+          x[bs * _dofs(i, 0) + j]
+              = scale * (g[bs * _dofs(i, 1) + j] - x0[bs * _dofs(i, 0) + j]);
+        }
+      }
     }
   }
 
@@ -231,8 +244,10 @@ public:
   {
     assert(_g);
     auto& g = _g->x()->array();
+    const int bs = _function_space->element()->block_size();
     for (Eigen::Index i = 0; i < _dofs.rows(); ++i)
-      values[_dofs(i, 0)] = g[_dofs(i, 1)];
+      for (int j = 0; j < bs; ++j)
+        values[bs * _dofs(i, 0) + j] = g[bs * _dofs(i, 1) + j];
   }
 
   /// Set markers[i] = true if dof i has a boundary condition applied.
@@ -240,15 +255,24 @@ public:
   /// @todo Clarify w.r.t ghosts
   void mark_dofs(std::vector<bool>& markers) const
   {
+    // std::cout << "Marker size: " << markers.size() << std::endl;
+    // TODO: make block-wise
+    const int bs = _function_space->element()->block_size();
     for (Eigen::Index i = 0; i < _dofs.rows(); ++i)
     {
-      assert(_dofs(i, 0) < (std::int32_t)markers.size());
-      markers[_dofs(i, 0)] = true;
+      // std::cout << "Index: " << _dofs(i, 0) << std::endl;
+      // assert(_dofs(i, 0) < (std::int32_t)markers.size());
+      for (int j = 0; j < bs; ++j)
+      {
+        // std::cout << "Unrolled Index: " << bs * _dofs(i, 0) + j << std::endl;
+        markers[bs * _dofs(i, 0) + j] = true;
+      }
     }
   }
 
 private:
-  // The function space (possibly a sub function space)
+  // The function space (possibly a sub function space) on which bcs are
+  // applied
   std::shared_ptr<const function::FunctionSpace> _function_space;
 
   // The function

@@ -217,6 +217,8 @@ void fem(py::module& m)
            &dolfinx::fem::FiniteElement::dof_reference_coordinates)
       .def_property_readonly("value_rank",
                              &dolfinx::fem::FiniteElement::value_rank)
+      .def_property_readonly("block_size",
+                             &dolfinx::fem::FiniteElement::block_size)
       .def("space_dimension", &dolfinx::fem::FiniteElement::space_dimension)
       .def("value_dimension", &dolfinx::fem::FiniteElement::value_dimension)
       .def("signature", &dolfinx::fem::FiniteElement::signature);
@@ -303,14 +305,14 @@ void fem(py::module& m)
         [](Mat A, const dolfinx::fem::Form<PetscScalar>& a,
            const std::vector<std::shared_ptr<
                const dolfinx::fem::DirichletBC<PetscScalar>>>& bcs) {
-          dolfinx::fem::assemble_matrix(dolfinx::la::PETScMatrix::add_fn(A), a,
-                                        bcs);
+          dolfinx::fem::assemble_matrix(
+              dolfinx::la::PETScMatrix::add_fn_block(A), a, bcs);
         });
   m.def("assemble_matrix_petsc",
         [](Mat A, const dolfinx::fem::Form<PetscScalar>& a,
            const std::vector<bool>& rows0, const std::vector<bool>& rows1) {
-          dolfinx::fem::assemble_matrix(dolfinx::la::PETScMatrix::add_fn(A), a,
-                                        rows0, rows1);
+          dolfinx::fem::assemble_matrix(
+              dolfinx::la::PETScMatrix::add_fn_block(A), a, rows0, rows1);
         });
   m.def("add_diagonal",
         [](Mat A, const dolfinx::function::FunctionSpace& V,

@@ -54,10 +54,10 @@ get_remote_bcs1(const common::IndexMap& map,
   MPI_Neighbor_allgather(&num_dofs, 1, MPI_INT, num_dofs_recv.data(), 1,
                          MPI_INT, comm);
 
+  // FIXME X
   // NOTE: we could consider only dofs that we know are shared
   // Build array of global indices of dofs
-  const std::vector<std::int64_t> dofs_global
-      = map.local_to_global(dofs_local, false);
+  const std::vector<std::int64_t> dofs_global = map.local_to_global(dofs_local);
 
   // Compute displacements for data to receive. Last entry has total
   // number of received items.
@@ -80,7 +80,8 @@ get_remote_bcs1(const common::IndexMap& map,
   // FIXME: check that dofs is sorted
   // Build vector of local dof indicies that have been marked by another
   // process
-  std::vector<std::int32_t> dofs = map.global_to_local(dofs_received, false);
+  // FIXME X
+  std::vector<std::int32_t> dofs = map.global_to_local(dofs_received);
   dofs.erase(std::remove(dofs.begin(), dofs.end(), -1), dofs.end());
 
   return dofs;
@@ -127,8 +128,9 @@ get_remote_bcs2(const common::IndexMap& map0, const common::IndexMap& map1,
   // Build array of global indices of dofs
   Eigen::Array<std::int64_t, Eigen::Dynamic, 2, Eigen::RowMajor> dofs_global(
       dofs_local.size(), 2);
-  dofs_global.col(0) = map0.local_to_global(dofs_local0, false);
-  dofs_global.col(1) = map1.local_to_global(dofs_local1, false);
+  // FIXME X
+  dofs_global.col(0) = map0.local_to_global(dofs_local0);
+  dofs_global.col(1) = map1.local_to_global(dofs_local1);
 
   // Compute displacements for data to receive. Last entry has total
   // number of received items.
@@ -159,8 +161,9 @@ get_remote_bcs2(const common::IndexMap& map0, const common::IndexMap& map1,
     dofs_received1[i] = dofs_received(i, 1);
   }
 
-  std::vector dofs0 = map0.global_to_local(dofs_received0, false);
-  std::vector dofs1 = map1.global_to_local(dofs_received1, false);
+  // FIXME X
+  std::vector dofs0 = map0.global_to_local(dofs_received0);
+  std::vector dofs1 = map1.global_to_local(dofs_received1);
 
   // FIXME: check that dofs is sorted
   dofs0.erase(std::remove(dofs0.begin(), dofs0.end(), -1), dofs0.end());
@@ -471,8 +474,10 @@ Eigen::Array<std::int32_t, Eigen::Dynamic, 1> _locate_dofs_geometrical(
   // interface that computes dofs coordinates only for specified cell.
 
   // Compute dof coordinates
+  // std::cout << "Get coords" << std::endl;
   const Eigen::Array<double, 3, Eigen::Dynamic, Eigen::RowMajor> dof_coordinates
       = V.tabulate_dof_coordinates().transpose();
+  // std::cout << "Got coords" << std::endl;
 
   // Compute marker for each dof coordinate
   const Eigen::Array<bool, Eigen::Dynamic, 1> marked_dofs

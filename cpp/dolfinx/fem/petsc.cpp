@@ -15,15 +15,19 @@ using namespace dolfinx;
 //-----------------------------------------------------------------------------
 la::PETScMatrix dolfinx::fem::create_matrix(const Form<PetscScalar>& a)
 {
-  // Build sparsitypattern
+  // Build sparsity pattern
   la::SparsityPattern pattern = fem::create_sparsity_pattern(a);
+
+  // Get block sizes
+  std::array bs = {a.function_spaces()[0]->element()->block_size(),
+                   a.function_spaces()[0]->element()->block_size()};
 
   // Finalise communication
   pattern.assemble();
 
   // Initialize matrix
   common::Timer t1("Init tensor");
-  la::PETScMatrix A(a.mesh()->mpi_comm(), pattern);
+  la::PETScMatrix A(a.mesh()->mpi_comm(), pattern, bs);
   t1.stop();
 
   return A;
@@ -111,7 +115,8 @@ la::PETScMatrix fem::create_matrix_block(
   // Mat constructor.
 
   // Initialise matrix
-  la::PETScMatrix A(mesh->mpi_comm(), pattern);
+  throw std::runtime_error("Nest mat needs updating");
+  la::PETScMatrix A(mesh->mpi_comm(), pattern, {});
 
   // Create row and column local-to-global maps (field0, field1, field2,
   // etc), i.e. ghosts of field0 appear before owned indices of field1
@@ -121,9 +126,10 @@ la::PETScMatrix fem::create_matrix_block(
     for (std::size_t f = 0; f < maps[d].size(); ++f)
     {
       const common::IndexMap& map = maps[d][f].get();
-      const int bs = map.block_size();
+      // const int bs = map.block_size();
+      const int bs = 1;
       const std::int32_t size_local = bs * map.size_local();
-      const std::vector global = map.global_indices(false);
+      const std::vector global = map.global_indices();
       for (std::int32_t i = 0; i < size_local; ++i)
         _maps[d].push_back(i + rank_offset + local_offset[f]);
       for (std::size_t i = size_local; i < global.size(); ++i)
@@ -218,9 +224,9 @@ la::PETScVector fem::create_vector_block(
 
   // Create map for combined problem, and create vector
   common::IndexMap index_map(maps[0].get().comm(), local_size, dest_ranks,
-                             ghosts, ghost_owners, 1);
+                             ghosts, ghost_owners);
 
-  return la::PETScVector(index_map);
+  return la::PETScVector(index_map, 1);
 }
 //-----------------------------------------------------------------------------
 la::PETScVector
@@ -238,7 +244,8 @@ fem::create_vector_nest(const std::vector<const common::IndexMap*>& maps)
       throw std::runtime_error(
           "Cannot construct nested PETSc vectors with null blocks.");
     }
-    vecs[i] = std::make_shared<la::PETScVector>(*maps[i]);
+
+    vecs[i] = std::make_shared<la::PETScVector>(*maps[i], 1);
     petsc_vecs[i] = vecs[i]->vec();
   }
 

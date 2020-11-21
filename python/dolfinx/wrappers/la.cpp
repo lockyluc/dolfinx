@@ -98,23 +98,23 @@ void la(py::module& m)
 
   // utils
   m.def("create_vector",
-        py::overload_cast<const dolfinx::common::IndexMap&>(
+        py::overload_cast<const dolfinx::common::IndexMap&, int>(
             &dolfinx::la::create_petsc_vector),
         py::return_value_policy::take_ownership,
         "Create a ghosted PETSc Vec for index map.");
   m.def(
       "create_vector",
-      [](const MPICommWrapper comm, std::array<std::int64_t, 2> range,
-         const Eigen::Array<std::int64_t, Eigen::Dynamic, 1>& ghost_indices,
-         int block_size) {
-        return dolfinx::la::create_petsc_vector(comm.get(), range,
-                                                ghost_indices, block_size);
+      [](const MPICommWrapper comm, std::array<std::int64_t, 2> range, int bs,
+         const Eigen::Array<std::int64_t, Eigen::Dynamic, 1>& ghost_indices) {
+        return dolfinx::la::create_petsc_vector(comm.get(), range, bs,
+                                                ghost_indices);
       },
       py::return_value_policy::take_ownership, "Create a PETSc Vec.");
   m.def(
       "create_matrix",
-      [](const MPICommWrapper comm, const dolfinx::la::SparsityPattern& p) {
-        return dolfinx::la::create_petsc_matrix(comm.get(), p);
+      [](const MPICommWrapper comm, const dolfinx::la::SparsityPattern& p,
+         const std::array<int, 2>& bs) {
+        return dolfinx::la::create_petsc_matrix(comm.get(), p, bs);
       },
       py::return_value_policy::take_ownership,
       "Create a PETSc Mat from sparsity pattern.");
