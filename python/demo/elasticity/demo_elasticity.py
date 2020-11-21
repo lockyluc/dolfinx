@@ -8,20 +8,19 @@
 # This demo solves the equations of static linear elasticity. The solver uses
 # smoothed aggregation algebraic multigrid. ::
 
-from contextlib import ExitStack
 import os
-
-import numpy as np
-from mpi4py import MPI
-from petsc4py import PETSc
+from contextlib import ExitStack
 
 import dolfinx
-from dolfinx import BoxMesh, RectangleMesh, DirichletBC, Function, VectorFunctionSpace, cpp
+import numpy as np
+from dolfinx import BoxMesh, DirichletBC, Function, VectorFunctionSpace, cpp
 from dolfinx.cpp.mesh import CellType
 from dolfinx.fem import (Form, apply_lifting, assemble_matrix, assemble_vector,
                          locate_dofs_geometrical, set_bc)
 from dolfinx.io import XDMFFile
 from dolfinx.la import VectorSpaceBasis
+from mpi4py import MPI
+from petsc4py import PETSc
 from ufl import (Identity, SpatialCoordinate, TestFunction, TrialFunction,
                  as_vector, dx, grad, inner, sym, tr)
 

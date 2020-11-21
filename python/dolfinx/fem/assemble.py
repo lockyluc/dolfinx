@@ -34,6 +34,7 @@ def _create_cpp_form(form):
 
 
 def create_vector(L: typing.Union[Form, cpp.fem.Form]) -> PETSc.Vec:
+    V = _create_cpp_form(L).function_spaces[0]
     return cpp.la.create_vector(V.dofmap.index_map, V.element.block_size)
 
 
