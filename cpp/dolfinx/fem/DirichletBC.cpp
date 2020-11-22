@@ -296,7 +296,6 @@ _locate_dofs_topological(const function::FunctionSpace& V, const int entity_dim,
                          const Eigen::Ref<const Eigen::ArrayXi>& entities,
                          bool remote)
 {
-  std::cout << "Here I am 1" << std::endl;
   assert(V.dofmap());
   std::shared_ptr<const DofMap> dofmap = V.dofmap();
   assert(V.mesh());

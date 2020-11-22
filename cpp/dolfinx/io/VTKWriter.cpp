@@ -335,6 +335,7 @@ void VTKWriter::write_cell_data(const function::Function<PetscScalar>& u,
   for (int c = 0; c < num_cells; ++c)
   {
     // Tabulate dofs
+    // FIXME X
     auto dofs = dofmap->cell_dofs(c);
     for (int i = 0; i < num_dofs_cell; ++i)
       dof_set.push_back(dofs[i]);

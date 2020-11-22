@@ -793,6 +793,8 @@ void assemble_interior_facets(
       }
     }
 
+    // FIXME X
+
     // Get dofmaps for cell
     auto dmap0 = dofmap.cell_dofs(cells[0]);
     auto dmap1 = dofmap.cell_dofs(cells[1]);
