@@ -49,6 +49,7 @@ Usize = U.dolfin_element().space_dimension()
 sigma, tau = ufl.TrialFunction(S), ufl.TestFunction(S)
 u, v = ufl.TrialFunction(U), ufl.TestFunction(U)
 
+
 def free_end(x):
     """Marks the leftmost points of the cantilever"""
     return numpy.isclose(x[0], 48.0)
