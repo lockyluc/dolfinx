@@ -58,7 +58,7 @@ const auto mat_add
                 std::int32_t ncol, const std::int32_t* cols, const T* v)
     {
     for (int i = 0; i < nrow; ++i)
-        for (int j = 0; j < ncol; ++j)
+      for (int j = 0; j < ncol; ++j)
         triplets.emplace_back(rows[i], cols[j], v[i * ncol + j]);
     return 0;
     };
@@ -67,9 +67,11 @@ dolfinx::fem::assemble_matrix<T>(mat_add, a, bcs);
 
 auto map0 = a.function_spaces().at(0)->dofmap()->index_map;
 auto map1 = a.function_spaces().at(1)->dofmap()->index_map;
+const int bs0 = a.function_spaces().at(0)->element()->block_size();
+const int bs1 = a.function_spaces().at(1)->element()->block_size();
 Eigen::SparseMatrix<T, Eigen::RowMajor> mat(
-    map0->block_size() * (map0->size_local() + map0->num_ghosts()),
-    map1->block_size() * (map1->size_local() + map1->num_ghosts()));
+    bs0 * (map0->size_local() + map0->num_ghosts()),
+    bs1 * (map1->size_local() + map1->num_ghosts()));
 mat.setFromTriplets(triplets.begin(), triplets.end());
 return mat;
 }
