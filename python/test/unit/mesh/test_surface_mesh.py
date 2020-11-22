@@ -19,10 +19,11 @@ from mpi4py import MPI
                          [cmesh.CellType.tetrahedron,
                           cmesh.CellType.hexahedron])
 def test_b_mesh_mapping(celltype):
-    """
-    Creates a boundary mesh and checks that the geometrical entities
+    """Creates a boundary mesh and checks that the geometrical entities
     are mapped to the correct cells.
+
     """
+
     mesh = dolfinx.UnitCubeMesh(MPI.COMM_WORLD, 2, 2, 2, cell_type=celltype)
 
     b_mesh, bndry_to_mesh = dolfinx.plotting.create_boundary_mesh(mesh, MPI.COMM_SELF)
@@ -31,8 +32,7 @@ def test_b_mesh_mapping(celltype):
     b_mesh.topology.create_connectivity(
         b_mesh.topology.dim, b_mesh.topology.dim)
     b_imap = b_mesh.topology.index_map(b_mesh.topology.dim)
-    tdim_entities = np.arange(b_imap.size_local * b_imap.block_size,
-                              dtype=np.int32)
+    tdim_entities = np.arange(b_imap.size_local, dtype=np.int32)
     boundary_geometry = cmesh.entities_to_geometry(
         b_mesh, b_mesh.topology.dim, tdim_entities, False)
 
