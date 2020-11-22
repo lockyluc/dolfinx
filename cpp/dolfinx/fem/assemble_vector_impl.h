@@ -535,8 +535,6 @@ template <typename T>
 void assemble_vector(Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, 1>> b,
                      const Form<T>& L)
 {
-  std::cout << "Vector size: " << b.rows() << std::endl;
-
   std::shared_ptr<const mesh::Mesh> mesh = L.mesh();
   assert(mesh);
   const int tdim = mesh->topology().dim();

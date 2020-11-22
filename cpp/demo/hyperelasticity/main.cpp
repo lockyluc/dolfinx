@@ -58,6 +58,7 @@ public:
   {
     // Assemble b and update ghosts
     _b.array().setZero();
+
     fem::assemble_vector<PetscScalar>(_b.array(), *_l);
     VecGhostUpdateBegin(_b_petsc, ADD_VALUES, SCATTER_REVERSE);
     VecGhostUpdateEnd(_b_petsc, ADD_VALUES, SCATTER_REVERSE);

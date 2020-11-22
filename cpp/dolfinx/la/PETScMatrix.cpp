@@ -44,7 +44,6 @@ Mat la::create_petsc_matrix(
   const std::int32_t n = bs[1] * index_maps[1]->size_local();
 
   // Set matrix size
-  // std::cout << "PETSc sizes: " << M << ", " << N << std::endl;
   ierr = MatSetSizes(A, m, n, M, N);
   if (ierr != 0)
     petsc_error(ierr, __FILE__, "MatSetSizes");
@@ -68,8 +67,6 @@ Mat la::create_petsc_matrix(
   {
     _nnz_diag.resize(index_maps[0]->size_local());
     _nnz_offdiag.resize(index_maps[0]->size_local());
-    std::cout << "Sizes: " << _nnz_diag.size() << ", " << _nnz_offdiag.size()
-              << std::endl;
     for (std::size_t i = 0; i < _nnz_diag.size(); ++i)
       _nnz_diag[i] = diagonal_pattern.links(i).rows();
     for (std::size_t i = 0; i < _nnz_offdiag.size(); ++i)
@@ -87,7 +84,6 @@ Mat la::create_petsc_matrix(
   }
 
   // Allocate space for matrix
-  std::cout << "BlocksPETSc sizes: " << _bs << std::endl;
   ierr = MatXAIJSetPreallocation(A, _bs, _nnz_diag.data(), _nnz_offdiag.data(),
                                  nullptr, nullptr);
   if (ierr != 0)
@@ -141,8 +137,6 @@ Mat la::create_petsc_matrix(
   ierr = MatSetOption(A, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
   if (ierr != 0)
     petsc_error(ierr, __FILE__, "MatSetOption");
-
-  std::cout << "Done " << std::endl;
 
   return A;
 }
