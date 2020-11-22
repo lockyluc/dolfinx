@@ -42,30 +42,17 @@ def build_nullspace(V):
     # Create list of vectors for null space
     index_map = V.dofmap.index_map
     nullspace_basis = [cpp.la.create_vector(index_map, bs) for i in range(6)]
-    # nullspace_basis = [cpp.la.create_vector(index_map, bs) for i in range(3)]
 
     with ExitStack() as stack:
         vec_local = [stack.enter_context(x.localForm()) for x in nullspace_basis]
         basis = [np.asarray(x) for x in vec_local]
 
-        # print(V.dofmap.element_dof_layout)
-        # Build translational null space basis
         for i in range(bs):
-            # print("-----------")
-            # print(basis[i])
-            # tmp = V.sub(i)
-            # print("Test: ", V.sub(i).dofmap.list.array)
             basis[i][V.sub(i).dofmap.list.array] = 1.0
 
         # Build rotational null space basis
         x = V.tabulate_dof_coordinates()
         dofs = [V.sub(i).dofmap.list.array for i in range(bs)]
-        # print(basis[2])
-        # print(dofs[0])
-        # print(dofs[0] // bs)
-        # print(x[:, 1])
-        # basis[2][dofs[0]] = -x[dofs[0] // bs, 1]
-        # basis[2][dofs[1]] = x[dofs[1] // bs, 0]
 
         basis[3][dofs[0]] = -x[dofs[0] // bs, 1]
         basis[3][dofs[1]] = x[dofs[1] // bs, 0]
@@ -75,12 +62,10 @@ def build_nullspace(V):
         basis[5][dofs[1]] = -x[dofs[1] // bs, 2]
 
     # Create vector space basis and orthogonalize
-    # print(basis)
     basis = VectorSpaceBasis(nullspace_basis)
     basis.orthonormalize()
 
     _x = [basis[i] for i in range(6)]
-    # _x = [basis[i] for i in len(basis)]
     nsp = PETSc.NullSpace().create(vectors=_x)
     return nsp
 

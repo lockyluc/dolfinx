@@ -30,7 +30,7 @@ def build_elastic_nullspace(V):
     dim = 3 if gdim == 2 else 6
 
     # Create list of vectors for null space
-    nullspace_basis = [cpp.la.create_vector(V.dofmap.index_map) for i in range(dim)]
+    nullspace_basis = [cpp.la.create_vector(V.dofmap.index_map, gdim) for i in range(dim)]
 
     with ExitStack() as stack:
         vec_local = [stack.enter_context(x.localForm()) for x in nullspace_basis]
@@ -45,40 +45,42 @@ def build_elastic_nullspace(V):
 
         # Build rotational null space basis
         if gdim == 2:
-            basis[2][dofs[0]] = -x[dofs[0], 1]
-            basis[2][dofs[1]] = x[dofs[1], 0]
+            basis[2][dofs[0]] = -x[dofs[0] // gdim, 1]
+            basis[2][dofs[1]] = x[dofs[1] // gdim, 0]
         elif gdim == 3:
-            basis[3][dofs[0]] = -x[dofs[0], 1]
-            basis[3][dofs[1]] = x[dofs[1], 0]
-            basis[4][dofs[0]] = x[dofs[0], 2]
-            basis[4][dofs[2]] = -x[dofs[2], 0]
-            basis[5][dofs[2]] = x[dofs[2], 1]
-            basis[5][dofs[1]] = -x[dofs[1], 2]
+            basis[3][dofs[0]] = -x[dofs[0] // gdim, 1]
+            basis[3][dofs[1]] = x[dofs[1] // gdim, 0]
+            basis[4][dofs[0]] = x[dofs[0] // gdim, 2]
+            basis[4][dofs[2]] = -x[dofs[2] // gdim, 0]
+            basis[5][dofs[2]] = x[dofs[2] // gdim, 1]
+            basis[5][dofs[1]] = -x[dofs[1] // gdim, 2]
 
     return la.VectorSpaceBasis(nullspace_basis)
 
 
 def build_broken_elastic_nullspace(V):
-    """Function to build incorrect null space for 2D elasticity"""
+    """Function to build incorrect null space for elasticity"""
+
+    gdim = V.mesh.geometry.dim
 
     # Create list of vectors for null space
-    nullspace_basis = [cpp.la.create_vector(V.dofmap.index_map) for i in range(4)]
+    nullspace_basis = [cpp.la.create_vector(V.dofmap.index_map, gdim) for i in range(4)]
 
     with ExitStack() as stack:
         vec_local = [stack.enter_context(x.localForm()) for x in nullspace_basis]
         basis = [np.asarray(x) for x in vec_local]
 
         x = V.tabulate_dof_coordinates()
-        dofs = [V.sub(i).dofmap.list.array for i in range(2)]
+        dofs = [V.sub(i).dofmap.list.array for i in range(gdim)]
         basis[0][dofs[0]] = 1.0
         basis[1][dofs[1]] = 1.0
 
         # Build rotational null space basis
-        basis[2][dofs[0]] = -x[dofs[0], 1]
-        basis[2][dofs[1]] = x[dofs[1], 0]
+        basis[2][dofs[0]] = -x[dofs[0] // gdim, 1]
+        basis[2][dofs[1]] = x[dofs[1] // gdim, 0]
 
         # Add vector that is not in nullspace
-        basis[3][dofs[1]] = x[dofs[1], 1]
+        basis[3][dofs[1]] = x[dofs[1] // gdim, 1]
 
     return la.VectorSpaceBasis(nullspace_basis)
 
