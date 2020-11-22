@@ -82,6 +82,8 @@ from dolfinx.io import XDMFFile
 from dolfinx.mesh import locate_entities_boundary
 from ufl import div, dx, grad, inner
 
+exit(0)
+
 # We create a Mesh and attach a coordinate map to the mesh::
 
 # Create mesh
