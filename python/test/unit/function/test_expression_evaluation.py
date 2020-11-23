@@ -45,7 +45,7 @@ def test_rank0():
     ffi = cffi.FFI()
 
     @numba.njit
-    def assemble_expression(b, kernel, mesh, dofmap, bs, coeff, coeff_dofmap, coeff_bs):
+    def assemble_expression(b, kernel, mesh, dofmap, coeff, coeff_dofmap):
         pos, x_dofmap, x = mesh
         geometry = np.zeros((3, 2))
         w = np.zeros(6, dtype=PETSc.ScalarType)
