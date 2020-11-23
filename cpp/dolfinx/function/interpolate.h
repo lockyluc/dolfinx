@@ -105,13 +105,21 @@ void interpolate_from_any(Function<T>& u, const Function<T>& v)
   const auto dofmap_u = u.function_space()->dofmap();
   const Eigen::Matrix<T, Eigen::Dynamic, 1>& v_array = v.x()->array();
   const int num_cells = map->size_local() + map->num_ghosts();
+  const int bs = dofmap_v->bs();
+  assert(bs == dofmap_u->bs());
   for (int c = 0; c < num_cells; ++c)
   {
     auto dofs_v = dofmap_v->cell_dofs(c);
     auto cell_dofs = dofmap_u->cell_dofs(c);
     assert(dofs_v.size() == cell_dofs.size());
     for (Eigen::Index i = 0; i < dofs_v.size(); ++i)
-      expansion_coefficients[cell_dofs[i]] = v_array[dofs_v[i]];
+    {
+      for (int k = 0; k < bs; ++k)
+      {
+        expansion_coefficients[bs * cell_dofs[i] + k]
+            = v_array[bs * dofs_v[i] + k];
+      }
+    }
   }
 }
 
@@ -185,10 +193,11 @@ void interpolate(
   auto mesh = u.function_space()->mesh();
   assert(mesh);
   const int tdim = mesh->topology().dim();
+  // FIXME: This check is not very nice
   if (element->family() == "Mixed")
   {
-    // Extract the correct components of the result for each subelement of the
-    // MixedElement
+    // Extract the correct components of the result for each subelement
+    // of the MixedElement
     std::shared_ptr<const fem::DofMap> dofmap = u.function_space()->dofmap();
     auto map = mesh->topology().index_map(tdim);
     assert(map);
@@ -196,6 +205,7 @@ void interpolate(
 
     Eigen::Array<T, 1, Eigen::Dynamic> mixed_values(values.cols());
     int value_offset = 0;
+    // std::cout << "Loop over sub-elements " << std::endl;
     for (int i = 0; i < element->num_sub_elements(); ++i)
     {
       const std::vector<int> component = {i};
@@ -203,15 +213,44 @@ void interpolate(
       std::shared_ptr<const fem::FiniteElement> sub_element
           = element->extract_sub_element(component);
       const int element_block_size = sub_element->block_size();
+      if (sub_dofmap.bs() != 1)
+      {
+        throw std::runtime_error(
+            "Mixed element interpolation not working with blocked elements.");
+      }
+
+      // std::cout << "   bs: " << bs << std::endl;
       for (std::size_t cell = 0; cell < num_cells; ++cell)
       {
         const auto cell_dofs = sub_dofmap.cell_dofs(cell);
         const std::size_t scalar_dofs = cell_dofs.rows() / element_block_size;
+        // std::cout << "   cells dof size: " << cell_dofs.rows() << std::endl;
+        // for (std::size_t dof = 0; dof < cell_dofs.rows(); ++dof)
+        // {
+        //   for (int k = 0; k < bs; ++k)
+        //   {
+        //     assert(bs * cell_dofs[dof] + k < mixed_values.size());
+        //     assert(value_offset + k < values.rows());
+        //     assert(bs * cell_dofs[dof] < values.cols());
+        //     mixed_values(bs * cell_dofs[dof] + k)
+        //         = values(value_offset + k, bs * cell_dofs[dof]);
+        //   }
+        // }
         for (std::size_t dof = 0; dof < scalar_dofs; ++dof)
+        {
           for (int b = 0; b < element_block_size; ++b)
+          {
+            assert(element_block_size * dof + b < cell_dofs.rows());
+            assert(cell_dofs[element_block_size * dof + b]
+                   < mixed_values.size());
+            assert(value_offset + b < values.rows());
+            assert(cell_dofs[element_block_size * dof] < values.cols());
             mixed_values(cell_dofs[element_block_size * dof + b])
                 = values(value_offset + b, cell_dofs[element_block_size * dof]);
+          }
+        }
       }
+      // value_offset += bs;
       value_offset += element_block_size;
     }
     detail::interpolate_values<T>(u, mixed_values);

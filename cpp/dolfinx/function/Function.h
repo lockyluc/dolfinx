@@ -328,6 +328,7 @@ public:
     // Get dofmap
     std::shared_ptr<const fem::DofMap> dofmap = _function_space->dofmap();
     assert(dofmap);
+    const int bs_dofmap = _function_space->dofmap()->bs();
 
     mesh->topology_mutable().create_entity_permutations();
     const Eigen::Array<std::uint32_t, Eigen::Dynamic, 1>& cell_info
@@ -363,8 +364,8 @@ public:
       // Get degrees of freedom for current cell
       auto dofs = dofmap->cell_dofs(cell_index);
       for (Eigen::Index i = 0; i < dofs.size(); ++i)
-        for (int k = 0; k < bs; ++k)
-          coefficients[bs * i + k] = _v[bs * dofs[i] + k];
+        for (int k = 0; k < bs_dofmap; ++k)
+          coefficients[bs_dofmap * i + k] = _v[bs_dofmap * dofs[i] + k];
       // for (Eigen::Index i = 0; i < dofs.size(); ++i)
       //   coefficients[i] = _v[dofs[i]];
 
