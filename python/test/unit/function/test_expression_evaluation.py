@@ -224,7 +224,8 @@ def test_assembly_into_quadrature_function():
     # Assemble into Function
     e_Q = dolfinx.Function(Q)
     with e_Q.vector.localForm() as e_Q_local:
-        e_Q_local.setValues(Q.dofmap.list.array, e_eval, addv=PETSc.InsertMode.INSERT)
+        e_Q_local.setBlockSize(2)
+        e_Q_local.setValuesBlocked(Q.dofmap.list.array, e_eval, addv=PETSc.InsertMode.INSERT)
 
     def e_exact(x):
         T = x[0] + 2.0 * x[1]
