@@ -34,22 +34,18 @@ def test_rank0():
     P2 = dolfinx.FunctionSpace(mesh, ("P", 2))
     vP1 = dolfinx.VectorFunctionSpace(mesh, ("P", 1))
 
-    f = dolfinx.Function(P2)
-
     def expr1(x):
         return x[0] ** 2 + 2.0 * x[1] ** 2
 
+    f = dolfinx.Function(P2)
     f.interpolate(expr1)
-
     ufl_expr = ufl.grad(f)
     points = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
-
     compiled_expr = dolfinx.jit.ffcx_jit(mesh.mpi_comm(), (ufl_expr, points))
-
     ffi = cffi.FFI()
 
     @numba.njit
-    def assemble_expression(b, kernel, mesh, dofmap, coeff, coeff_dofmap):
+    def assemble_expression(b, kernel, mesh, dofmap, bs, coeff, coeff_dofmap, coeff_bs):
         pos, x_dofmap, x = mesh
         geometry = np.zeros((3, 2))
         w = np.zeros(6, dtype=PETSc.ScalarType)
@@ -73,7 +69,7 @@ def test_rank0():
                    ffi.from_buffer(geometry))
             for j in range(3):
                 for k in range(2):
-                    b[dofmap[i * 6 + 2 * j + k]] = b_local[2 * j + k]
+                    b[2 * dofmap[i * 3 + j] + k] = b_local[2 * j + k]
 
     # Prepare mesh and dofmap data
     pos = mesh.geometry.dofmap.offsets
