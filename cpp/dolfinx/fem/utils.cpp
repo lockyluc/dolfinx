@@ -203,7 +203,8 @@ fem::DofMap fem::create_dofmap(MPI_Comm comm, const ufc_dofmap& ufc_dofmap,
 
   auto [index_map, dofmap]
       = DofMapBuilder::build(comm, topology, *element_dof_layout);
-  return DofMap(element_dof_layout, index_map, std::move(dofmap));
+  return DofMap(element_dof_layout, index_map, element_dof_layout->block_size(),
+                std::move(dofmap), element_dof_layout->block_size());
 }
 //-----------------------------------------------------------------------------
 std::vector<std::string> fem::get_coefficient_names(const ufc_form& ufc_form)

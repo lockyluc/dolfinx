@@ -69,8 +69,8 @@ public:
   /// IndexMap defining the distribution of dofs across processes and a
   /// vector of indices
   DofMap(std::shared_ptr<const ElementDofLayout> element_dof_layout,
-         std::shared_ptr<const common::IndexMap> index_map,
-         const graph::AdjacencyList<std::int32_t>& dofmap);
+         std::shared_ptr<const common::IndexMap> index_map, int index_map_bs,
+         const graph::AdjacencyList<std::int32_t>& dofmap, int bs);
 
   // Copy constructor
   DofMap(const DofMap& dofmap) = delete;
@@ -112,7 +112,12 @@ public:
 
   /// Get dofmap data
   /// @return The adjacency list with dof indices for each cell
-  const graph::AdjacencyList<std::int32_t>& list() const { return _dofmap; }
+  const graph::AdjacencyList<std::int32_t>& list() const;
+
+  /// Get dofmap block size
+  /// @return The block size for the dofmap, i.e. the number of
+  /// degrees-of-freedom at each point (block) in the dofmap
+  int bs() const;
 
   /// Layout of dofs on an element
   std::shared_ptr<const ElementDofLayout> element_dof_layout;
@@ -120,8 +125,18 @@ public:
   /// Index map that described the parallel distribution of the dofmap
   std::shared_ptr<const common::IndexMap> index_map;
 
+  /// Get the block size for the index map. It is also the block size of
+  /// the dofmap for the root dofmap in the case of dofmap views.
+  int index_map_bs() const;
+
 private:
+  // The block size for the index map
+  int _index_map_bs = -1;
+
   // Cell-local-to-dof map (dofs for cell dofmap[cell])
   graph::AdjacencyList<std::int32_t> _dofmap;
+
+  // The block size for  _dofmap
+  int _bs = -1;
 };
 } // namespace dolfinx::fem

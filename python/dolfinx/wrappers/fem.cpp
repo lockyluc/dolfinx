@@ -248,11 +248,14 @@ void fem(py::module& m)
   py::class_<dolfinx::fem::DofMap, std::shared_ptr<dolfinx::fem::DofMap>>(
       m, "DofMap", "DofMap object")
       .def(py::init<std::shared_ptr<const dolfinx::fem::ElementDofLayout>,
-                    std::shared_ptr<const dolfinx::common::IndexMap>,
-                    dolfinx::graph::AdjacencyList<std::int32_t>&>(),
+                    std::shared_ptr<const dolfinx::common::IndexMap>, int,
+                    dolfinx::graph::AdjacencyList<std::int32_t>&, int>(),
            py::arg("element_dof_layout"), py::arg("index_map"),
-           py::arg("dofmap"))
+           py::arg("index_map_bs"), py::arg("dofmap"), py::arg("bs"))
       .def_readonly("index_map", &dolfinx::fem::DofMap::index_map)
+      .def_property_readonly("index_map_bs",
+                             &dolfinx::fem::DofMap::index_map_bs)
+      .def_property_readonly("bs", &dolfinx::fem::DofMap::bs)
       .def_readonly("dof_layout", &dolfinx::fem::DofMap::element_dof_layout)
       .def("cell_dofs", &dolfinx::fem::DofMap::cell_dofs)
       .def("list", &dolfinx::fem::DofMap::list);
