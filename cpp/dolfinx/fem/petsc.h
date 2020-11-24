@@ -51,7 +51,8 @@ la::PETScVector create_vector_block(
 
 /// Create nested (VecNest) vector. Vector is not zeroed.
 la::PETScVector
-create_vector_nest(const std::vector<const common::IndexMap*>& maps);
+create_vector_nest(const std::vector<const common::IndexMap*>& maps,
+                   const std::vector<int>& bs);
 
 // -- Vectors ----------------------------------------------------------------
 

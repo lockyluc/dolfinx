@@ -46,8 +46,10 @@ def create_vector_block(L: typing.List[typing.Union[Form, cpp.fem.Form]]) -> PET
 
 
 def create_vector_nest(L: typing.List[typing.Union[Form, cpp.fem.Form]]) -> PETSc.Vec:
-    maps = [form.function_spaces[0].dofmap.index_map for form in _create_cpp_form(L)]
-    return cpp.fem.create_vector_nest(maps)
+    dofmaps = [form.function_spaces[0].dofmap for form in _create_cpp_form(L)]
+    maps = [dofmap.index_map for dofmap in dofmaps]
+    bs = [dofmap.bs for dofmap in dofmaps]
+    return cpp.fem.create_vector_nest(maps, bs)
 
 
 # -- Matrix instantiation ----------------------------------------------------
@@ -113,8 +115,11 @@ def assemble_vector_nest(L: typing.Union[Form, cpp.fem.Form]) -> PETSc.Vec:
     on the owning processes.
 
     """
-    maps = [form.function_spaces[0].dofmap.index_map for form in _create_cpp_form(L)]
-    b = cpp.fem.create_vector_nest(maps)
+    dofmaps = [form.function_spaces[0].dofmap for form in _create_cpp_form(L)]
+    maps = [dofmap.index_map for dofmap in dofmaps]
+    bs = [dofmap.bs for dofmap in dofmaps]
+    # maps = [form.function_spaces[0].dofmap.index_map for form in _create_cpp_form(L)]
+    b = cpp.fem.create_vector_nest(maps, bs)
     for b_sub in b.getNestSubVecs():
         with b_sub.localForm() as b_local:
             b_local.set(0.0)
@@ -209,7 +214,6 @@ def assemble_matrix(a: typing.Union[Form, cpp.fem.Form],
 
     """
     A = cpp.fem.create_matrix(_create_cpp_form(a))
-    A.zeroEntries()
     return assemble_matrix(A, a, bcs, diagonal)
 
 
@@ -236,7 +240,6 @@ def assemble_matrix_nest(a: typing.List[typing.List[typing.Union[Form, cpp.fem.F
                          diagonal: float = 1.0) -> PETSc.Mat:
     """Assemble bilinear forms into matrix"""
     A = cpp.fem.create_matrix_nest(_create_cpp_form(a))
-    A.zeroEntries()
     assemble_matrix_nest(A, a, bcs, diagonal)
     return A
 
@@ -251,8 +254,11 @@ def _(A: PETSc.Mat,
     for i, a_row in enumerate(_a):
         for j, a_block in enumerate(a_row):
             if a_block is not None:
+                print("Block: ", i, j)
                 Asub = A.getNestSubMatrix(i, j)
+                print("Got block: ", i, j)
                 assemble_matrix(Asub, a_block, bcs)
+                print("Post: ", i, j)
     return A
 
 
@@ -262,8 +268,9 @@ def assemble_matrix_block(a: typing.List[typing.List[typing.Union[Form, cpp.fem.
                           bcs: typing.List[DirichletBC] = [],
                           diagonal: float = 1.0) -> PETSc.Mat:
     """Assemble bilinear forms into matrix"""
+    print("Create matrix")
     A = cpp.fem.create_matrix_block(_create_cpp_form(a))
-    # A.zeroEntries()
+    print("End create matrix")
     return assemble_matrix_block(A, a, bcs, diagonal)
 
 
@@ -348,7 +355,9 @@ def apply_lifting(b: PETSc.Vec,
         x0 = [stack.enter_context(x.localForm()) for x in x0]
         x0_r = [x.array_r for x in x0]
         b_local = stack.enter_context(b.localForm())
+        print("Call cpp lifting")
         cpp.fem.apply_lifting(b_local.array_w, _create_cpp_form(a), bcs, x0_r, scale)
+        print("Post cpp lifting")
 
 
 def apply_lifting_nest(b: PETSc.Vec,
@@ -363,7 +372,10 @@ def apply_lifting_nest(b: PETSc.Vec,
     _a = _create_cpp_form(a)
     bcs1 = cpp.fem.bcs_cols(_a, bcs)
     for b_sub, a_sub, bc1 in zip(b.getNestSubVecs(), _a, bcs1):
+        print("Apply lifting 0")
         apply_lifting(b_sub, a_sub, bc1, x0, scale)
+        print("Apply lifting post")
+    print("returning")
     return b
 
 

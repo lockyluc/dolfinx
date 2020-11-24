@@ -209,8 +209,7 @@ def test_assemble_manifold():
     assert numpy.isclose(A.norm(), 25.0199)
 
 
-@pytest.mark.parametrize("mode", [dolfinx.cpp.mesh.GhostMode.shared_facet])
-# @pytest.mark.parametrize("mode", [dolfinx.cpp.mesh.GhostMode.none, dolfinx.cpp.mesh.GhostMode.shared_facet])
+@pytest.mark.parametrize("mode", [dolfinx.cpp.mesh.GhostMode.none, dolfinx.cpp.mesh.GhostMode.shared_facet])
 def test_matrix_assembly_block(mode):
     """Test assembly of block matrices and vectors into (a) monolithic
     blocked structures, PETSc Nest structures, and monolithic structures.
@@ -450,10 +449,11 @@ def test_assembly_solve_block(mode):
 
 
 @pytest.mark.parametrize("mesh", [
-    UnitSquareMesh(MPI.COMM_WORLD, 12, 11, ghost_mode=dolfinx.cpp.mesh.GhostMode.none),
-    UnitSquareMesh(MPI.COMM_WORLD, 12, 11, ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet),
-    UnitCubeMesh(MPI.COMM_WORLD, 3, 7, 3, ghost_mode=dolfinx.cpp.mesh.GhostMode.none),
-    UnitCubeMesh(MPI.COMM_WORLD, 3, 7, 3, ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
+    UnitSquareMesh(MPI.COMM_WORLD, 1, 1, ghost_mode=dolfinx.cpp.mesh.GhostMode.none),
+    # UnitSquareMesh(MPI.COMM_WORLD, 12, 11, ghost_mode=dolfinx.cpp.mesh.GhostMode.none),
+    # UnitSquareMesh(MPI.COMM_WORLD, 12, 11, ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet),
+    # UnitCubeMesh(MPI.COMM_WORLD, 3, 7, 3, ghost_mode=dolfinx.cpp.mesh.GhostMode.none),
+    # UnitCubeMesh(MPI.COMM_WORLD, 3, 7, 3, ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet)
 ])
 def test_assembly_solve_taylor_hood(mesh):
     """Assemble Stokes problem with Taylor-Hood elements and solve."""
@@ -485,10 +485,15 @@ def test_assembly_solve_taylor_hood(mesh):
     u, p = ufl.TrialFunction(P2), ufl.TrialFunction(P1)
     v, q = ufl.TestFunction(P2), ufl.TestFunction(P1)
 
+    # a00 = inner(ufl.grad(u), ufl.grad(v)) * dx
+    # a01 = ufl.inner(p, ufl.div(v)) * dx
+    # a10 = ufl.inner(ufl.div(u), q) * dx
+    # a11 = None
+
     a00 = inner(ufl.grad(u), ufl.grad(v)) * dx
-    a01 = ufl.inner(p, ufl.div(v)) * dx
-    a10 = ufl.inner(ufl.div(u), q) * dx
-    a11 = None
+    a01 = None
+    a10 = None
+    a11 = inner(ufl.grad(p), ufl.grad(q)) * dx
 
     p00 = a00
     p01, p10 = None, None
@@ -545,16 +550,15 @@ def test_assembly_solve_taylor_hood(mesh):
 
     # -- Blocked (monolithic)
 
+    print("Assemble")
     A1 = dolfinx.fem.assemble_matrix_block([[a00, a01], [a10, a11]], [bc0, bc1])
     A1.assemble()
     assert A1.norm() == pytest.approx(A0norm, 1.0e-12)
     P1 = dolfinx.fem.assemble_matrix_block([[p00, p01], [p10, p11]], [bc0, bc1])
     P1.assemble()
     assert P1.norm() == pytest.approx(P0norm, 1.0e-12)
-
     b1 = dolfinx.fem.assemble_vector_block([L0, L1], [[a00, a01], [a10, a11]],
                                            [bc0, bc1])
-
     assert b1.norm() == pytest.approx(b0norm, 1.0e-12)
 
     ksp = PETSc.KSP()
@@ -587,6 +591,9 @@ def test_assembly_solve_taylor_hood(mesh):
     p00 = ufl.inner(ufl.grad(u), ufl.grad(v)) * dx
     p11 = ufl.inner(p, q) * dx
     p_form = p00 + p11
+
+    return
+
 
     f = dolfinx.Function(W.sub(0).collapse())
     p_zero = dolfinx.Function(W.sub(1).collapse())

@@ -170,6 +170,7 @@ void _lift_bc_cells(
     {
       for (int k = 0; k < bs[1]; ++k)
       {
+        assert(bs[1] * dmap1[j] + k < (int)bc_markers1.size());
         if (bc_markers1[bs[1] * dmap1[j] + k])
         {
           has_bc = true;
@@ -202,8 +203,10 @@ void _lift_bc_cells(
       for (int k = 0; k < bs[1]; ++k)
       {
         const std::int32_t jj = bs[1] * dmap1[j] + k;
+        assert(jj < (std::int32_t)bc_markers1.size());
         if (bc_markers1[jj])
         {
+          assert(jj < (std::int32_t)bc_values1.size());
           const T bc = bc_values1[jj];
           if (x0.rows() > 0)
             be -= Ae.col(bs[1] * j + k) * scale * (bc - x0[jj]);

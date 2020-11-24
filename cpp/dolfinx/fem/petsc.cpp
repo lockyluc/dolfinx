@@ -20,7 +20,7 @@ la::PETScMatrix dolfinx::fem::create_matrix(const Form<PetscScalar>& a)
 
   // Get block sizes
   std::array bs = {a.function_spaces()[0]->dofmap()->bs(),
-                   a.function_spaces()[0]->dofmap()->bs()};
+                   a.function_spaces()[1]->dofmap()->bs()};
 
   // Finalise communication
   pattern.assemble();
@@ -118,6 +118,8 @@ la::PETScMatrix fem::create_matrix_block(
       p[row].push_back(patterns[row][col].get());
   la::SparsityPattern pattern(mesh->mpi_comm(), p, maps, bs);
   pattern.assemble();
+
+  std::cout << pattern.diagonal_pattern().str() << std::endl;
 
   // FIXME: Add option to pass customised local-to-global map to PETSc
   // Mat constructor.
@@ -242,7 +244,8 @@ la::PETScVector fem::create_vector_block(
 }
 //-----------------------------------------------------------------------------
 la::PETScVector
-fem::create_vector_nest(const std::vector<const common::IndexMap*>& maps)
+fem::create_vector_nest(const std::vector<const common::IndexMap*>& maps,
+                        const std::vector<int>& bs)
 {
   assert(!maps.empty());
 
@@ -257,7 +260,7 @@ fem::create_vector_nest(const std::vector<const common::IndexMap*>& maps)
           "Cannot construct nested PETSc vectors with null blocks.");
     }
 
-    vecs[i] = std::make_shared<la::PETScVector>(*maps[i], 1);
+    vecs[i] = std::make_shared<la::PETScVector>(*maps[i], bs[i]);
     petsc_vecs[i] = vecs[i]->vec();
   }
 

@@ -91,8 +91,9 @@ void fem(py::module& m)
       "Create a monolithic vector for multiple (stacked) linear forms.");
   m.def(
       "create_vector_nest",
-      [](const std::vector<const dolfinx::common::IndexMap*>& maps) {
-        auto x = dolfinx::fem::create_vector_nest(maps);
+      [](const std::vector<const dolfinx::common::IndexMap*>& maps,
+         const std::vector<int>& bs) {
+        auto x = dolfinx::fem::create_vector_nest(maps, bs);
         Vec _x = x.vec();
         PetscObjectReference((PetscObject)_x);
         return _x;

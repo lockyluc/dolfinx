@@ -33,7 +33,7 @@ Mat la::create_petsc_matrix(
 
   // MatSetType(A, MATBAIJ);<
 
-  // Get IndexMaps from sparsity patterm, and block size
+  // Get IndexMaps from sparsity pattern
   std::array index_maps{sparsity_pattern.index_map(0),
                         sparsity_pattern.index_map(1)};
 
@@ -95,6 +95,10 @@ Mat la::create_petsc_matrix(
   // FIXME: In many cases the rows and columns could shared a common
   // local-to-global map
 
+  ierr = MatSetBlockSizes(A, bs[0], bs[1]);
+  if (ierr != 0)
+    petsc_error(ierr, __FILE__, "MatSetBlockSizes");
+
   // Create PETSc local-to-global map/index set
   const std::vector _map0 = index_maps[0]->global_indices();
   const std::vector _map1 = index_maps[1]->global_indices();
@@ -121,9 +125,9 @@ Mat la::create_petsc_matrix(
 
   // Note: This should be called after having set the local-to-global
   //   map for MATIS (this is a dummy call if A is not of type MATIS)
-  ierr = MatISSetPreallocation(A, 0, _nnz_diag.data(), 0, _nnz_offdiag.data());
-  if (ierr != 0)
-    petsc_error(ierr, __FILE__, "MatISSetPreallocation");
+  // ierr = MatISSetPreallocation(A, 0, _nnz_diag.data(), 0,
+  // _nnz_offdiag.data()); if (ierr != 0)
+  //   petsc_error(ierr, __FILE__, "MatISSetPreallocation");
 
   // Clean up local-to-global maps
   ierr = ISLocalToGlobalMappingDestroy(&petsc_local_to_global0);
