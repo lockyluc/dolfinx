@@ -547,7 +547,7 @@ void assemble_vector(Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, 1>> b,
       = L.function_spaces().at(0)->dofmap();
   assert(dofmap);
   const graph::AdjacencyList<std::int32_t>& dofs = dofmap->list();
-  const int bs = L.function_spaces().at(0)->element()->block_size();
+  const int bs = L.function_spaces().at(0)->dofmap()->bs();
 
   // Prepare constants
   const Eigen::Array<T, Eigen::Dynamic, 1> constant_values = pack_constants(L);
@@ -863,7 +863,7 @@ void apply_lifting(
       auto V1 = a[j]->function_spaces()[1];
       assert(V1);
       auto map1 = V1->dofmap()->index_map;
-      const int bs1 = V1->element()->block_size();
+      const int bs1 = V1->dofmap()->index_map_bs();
       assert(map1);
       const int crange = bs1 * (map1->size_local() + map1->num_ghosts());
       bc_markers1.assign(crange, false);
@@ -906,8 +906,8 @@ void lift_bc(
       = a.function_spaces()[0]->dofmap()->list();
   const graph::AdjacencyList<std::int32_t>& dofmap1
       = a.function_spaces()[1]->dofmap()->list();
-  const std::array bs = {a.function_spaces()[0]->element()->block_size(),
-                         a.function_spaces()[1]->element()->block_size()};
+  const std::array bs = {a.function_spaces()[0]->dofmap()->bs(),
+                         a.function_spaces()[1]->dofmap()->bs()};
 
   // Prepare constants
   const Eigen::Array<T, Eigen::Dynamic, 1> constant_values = pack_constants(a);

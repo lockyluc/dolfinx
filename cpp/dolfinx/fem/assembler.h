@@ -211,7 +211,7 @@ void add_diagonal(
     assert(bc);
     if (V.contains(*bc->function_space()))
     {
-      const int bs = bc->function_space()->element()->block_size();
+      const int bs = bc->function_space()->dofmap()->bs();
       add_diagonal<T>(mat_add, bc->dofs_owned().col(0), bs, diagonal);
     }
   }

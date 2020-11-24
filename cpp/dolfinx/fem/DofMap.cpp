@@ -99,8 +99,8 @@ fem::DofMap build_collapsed_dofmap(MPI_Comm comm, const DofMap& dofmap_view,
       = dolfinx::MPI::global_offset(comm, num_owned, true);
 
   // std::cout << "Map Block size: " << dofmap_view.index_map_bs() << std::endl;
-  // std::cout << "Map size: " << dofmap_view.index_map->size_local() << std::endl;
-  // std::cout << "Parent bs: " << dofmap_view.bs() << std::endl;
+  // std::cout << "Map size: " << dofmap_view.index_map->size_local() <<
+  // std::endl; std::cout << "Parent bs: " << dofmap_view.bs() << std::endl;
 
   const int map_bs = dofmap_view.index_map_bs();
 
@@ -110,7 +110,7 @@ fem::DofMap build_collapsed_dofmap(MPI_Comm comm, const DofMap& dofmap_view,
   for (auto it = dofs_in_view.begin(); it != it_unowned0; ++it)
   {
     const std::size_t index_new = std::distance(dofs_in_view.begin(), it);
-    assert(*it / map_bs < (int) global_index.size());
+    assert(*it / map_bs < (int)global_index.size());
     global_index[*it / map_bs] = index_new + process_offset;
   }
 

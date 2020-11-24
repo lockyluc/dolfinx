@@ -19,8 +19,8 @@ la::PETScMatrix dolfinx::fem::create_matrix(const Form<PetscScalar>& a)
   la::SparsityPattern pattern = fem::create_sparsity_pattern(a);
 
   // Get block sizes
-  std::array bs = {a.function_spaces()[0]->element()->block_size(),
-                   a.function_spaces()[0]->element()->block_size()};
+  std::array bs = {a.function_spaces()[0]->dofmap()->bs(),
+                   a.function_spaces()[0]->dofmap()->bs()};
 
   // Finalise communication
   pattern.assemble();

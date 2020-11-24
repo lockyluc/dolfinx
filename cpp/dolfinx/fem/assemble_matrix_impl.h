@@ -44,7 +44,7 @@ void assemble_cells(
     const std::vector<std::int32_t>& active_cells,
     const graph::AdjacencyList<std::int32_t>& dofmap0,
     const graph::AdjacencyList<std::int32_t>& dofmap1,
-    const std::array<int, 2>& block_size, const std::vector<bool>& bc0,
+    const std::array<int, 2>& bs, const std::vector<bool>& bc0,
     const std::vector<bool>& bc1,
     const std::function<void(T*, const T*, const T*, const double*, const int*,
                              const std::uint8_t*, const std::uint32_t)>& kernel,
@@ -110,8 +110,8 @@ void assemble_matrix(
   assert(dofmap1);
   const graph::AdjacencyList<std::int32_t>& dofs0 = dofmap0->list();
   const graph::AdjacencyList<std::int32_t>& dofs1 = dofmap1->list();
-  const std::array bs = {a.function_spaces().at(0)->element()->block_size(),
-                         a.function_spaces().at(1)->element()->block_size()};
+  const std::array bs = {a.function_spaces().at(0)->dofmap()->bs(),
+                         a.function_spaces().at(1)->dofmap()->bs()};
 
   // Prepare constants
   const Eigen::Array<T, Eigen::Dynamic, 1> constants = pack_constants(a);
@@ -184,7 +184,7 @@ void assemble_cells(
     const std::vector<std::int32_t>& active_cells,
     const graph::AdjacencyList<std::int32_t>& dofmap0,
     const graph::AdjacencyList<std::int32_t>& dofmap1,
-    const std::array<int, 2>& block_size, const std::vector<bool>& bc0,
+    const std::array<int, 2>& bs, const std::vector<bool>& bc0,
     const std::vector<bool>& bc1,
     const std::function<void(T*, const T*, const T*, const double*, const int*,
                              const std::uint8_t*, const std::uint32_t)>& kernel,
@@ -209,7 +209,7 @@ void assemble_cells(
   const int num_dofs0 = dofmap0.links(0).size();
   const int num_dofs1 = dofmap1.links(0).size();
   Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Ae(
-      num_dofs0 * block_size[0], num_dofs1 * block_size[0]);
+      num_dofs0 * bs[0], num_dofs1 * bs[1]);
 
   // Iterate over active cells
   for (std::int32_t c : active_cells)
@@ -238,14 +238,15 @@ void assemble_cells(
       // std::cout << "Block size (0): " << block_size[0] << std::endl;
       for (Eigen::Index i = 0; i < num_dofs0; ++i)
       {
-        for (int k = 0; k < block_size[0]; ++k)
+        for (int k = 0; k < bs[0]; ++k)
         {
           // std::cout << "Row check: " << dofs0[i] << ", "
           //           << bc0[block_size[0] * dofs0[i] + k] << std::endl;
-          if (bc0[block_size[0] * dofs0[i] + k])
+          if (bc0[bs[0] * dofs0[i] + k])
           {
-            // std::cout << "   Zero row: " << block_size[0] * i + k << std::endl;
-            Ae.row(block_size[0] * i + k).setZero();
+            // std::cout << "   Zero row: " << block_size[0] * i + k <<
+            // std::endl;
+            Ae.row(bs[0] * i + k).setZero();
           }
         }
       }
@@ -255,10 +256,10 @@ void assemble_cells(
     {
       for (Eigen::Index j = 0; j < num_dofs1; ++j)
       {
-        for (int k = 0; k < block_size[1]; ++k)
+        for (int k = 0; k < bs[1]; ++k)
         {
-          if (bc1[block_size[1] * dofs1[j] + k])
-            Ae.col(j * block_size[1] + k).setZero();
+          if (bc1[bs[1] * dofs1[j] + k])
+            Ae.col(j * bs[1] + k).setZero();
 
           // if (bc0[dofs0[j * block_size[1] + k]])
           //   Ae.col(j * block_size[1] + k).setZero();
