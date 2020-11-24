@@ -57,7 +57,7 @@ namespace fem
 ///   two spaces are passed in). If two spaces are passed in, the (i, 0)
 ///   entry is the DOF index in the space V[0] and (i, 1) is the
 ///   correspinding DOF entry in the space V[1].
-Eigen::Array<std::int32_t, Eigen::Dynamic, Eigen::Dynamic>
+std::array<Eigen::Array<std::int32_t, Eigen::Dynamic, 1>, 2>
 locate_dofs_topological(
     const std::vector<std::reference_wrapper<function::FunctionSpace>>& V,
     const int dim, const Eigen::Ref<const Eigen::ArrayXi>& entities,

@@ -177,7 +177,8 @@ get_remote_bcs2(const common::IndexMap& map0, const common::IndexMap& map1,
   return dofs;
 }
 //-----------------------------------------------------------------------------
-Eigen::Array<std::int32_t, Eigen::Dynamic, 2> _locate_dofs_topological(
+std::array<Eigen::Array<std::int32_t, Eigen::Dynamic, 1>, 2>
+_locate_dofs_topological(
     const std::vector<std::reference_wrapper<function::FunctionSpace>>& V,
     const int dim, const Eigen::Ref<const Eigen::ArrayXi>& entities,
     bool remote)
@@ -216,7 +217,7 @@ Eigen::Array<std::int32_t, Eigen::Dynamic, 2> _locate_dofs_topological(
   assert(dofmap0->element_dof_layout);
   const int num_entity_dofs
       = dofmap0->element_dof_layout->num_entity_closure_dofs(dim);
-  assert(V0.dofmap()->bs() == V1.dofmap()->bs());
+  // assert(V0.dofmap()->bs() == V1.dofmap()->bs());
 
   // Build vector local dofs for each cell facet
   std::vector<Eigen::Array<int, Eigen::Dynamic, 1>> entity_dofs;
@@ -232,6 +233,7 @@ Eigen::Array<std::int32_t, Eigen::Dynamic, 2> _locate_dofs_topological(
   assert(c_to_e);
 
   // Iterate over marked facets
+  std::vector<std::int32_t> bc_dofs0, bc_dofs1;
   std::vector<std::array<std::int32_t, 2>> bc_dofs;
   for (Eigen::Index e = 0; e < entities.rows(); ++e)
   {
@@ -253,10 +255,13 @@ Eigen::Array<std::int32_t, Eigen::Dynamic, 2> _locate_dofs_topological(
     // Loop over facet dofs
     for (int i = 0; i < num_entity_dofs; ++i)
     {
+      std::cout << "i: " << i << ", " << num_entity_dofs << std::endl;
       const int index = entity_dofs[entity_local_index][i];
-      bc_dofs.push_back({cell_dofs0[index], cell_dofs1[index]});
+      // bc_dofs.push_back({cell_dofs0[index], cell_dofs1[index]});
     }
   }
+
+  // HACK
 
   // TODO: is removing duplicates at this point worth the effort?
   // Remove duplicates
@@ -286,7 +291,7 @@ Eigen::Array<std::int32_t, Eigen::Dynamic, 2> _locate_dofs_topological(
     dofs(i, 1) = bc_dofs[i][1];
   }
 
-  return dofs;
+  return {dofs.col(0), dofs.col(1)};
 }
 //-----------------------------------------------------------------------------
 

@@ -314,8 +314,7 @@ DofMap::collapse(MPI_Comm comm, const mesh::Topology& topology) const
     // std::cout << "Here I am" << std::endl;
     dofmap_new = std::make_unique<DofMap>(
         build_collapsed_dofmap(comm, *this, topology));
-
-    // std::cout << "Post Here I am" << std::endl;
+    std::cout << "Post Here I am: " << dofmap_new->index_map_bs() << std::endl;
   }
   assert(dofmap_new);
 
@@ -326,25 +325,39 @@ DofMap::collapse(MPI_Comm comm, const mesh::Topology& topology) const
       = map_bs * (index_map_new->size_local() + index_map_new->num_ghosts());
   std::vector<std::int32_t> collapsed_map(size);
 
-  if (this->bs() != dofmap_new->bs())
+  // if (this->bs() != dofmap_new->bs())
+  if (this->bs() != 1)
     throw std::runtime_error("Block size problem");
 
   const int tdim = topology.dim();
   auto cells = topology.connectivity(tdim, 0);
   assert(cells);
+  const int bs = dofmap_new->bs();
+  std::cout << "Start loop" << std::endl;
   for (int c = 0; c < cells->num_nodes(); ++c)
   {
     auto cell_dofs_view = this->cell_dofs(c);
     auto cell_dofs = dofmap_new->cell_dofs(c);
-    assert(cell_dofs_view.rows() == cell_dofs.rows());
-    for (Eigen::Index i = 0; i < cell_dofs_view.rows(); ++i)
+    assert(cell_dofs_view.rows() == bs * cell_dofs.rows());
+    assert(cell_dofs_view.rows() % bs == 0);
+    for (Eigen::Index i = 0; i < cell_dofs.rows(); ++i)
     {
-      assert(cell_dofs[i] < (int)collapsed_map.size());
-      collapsed_map[cell_dofs[i]] = cell_dofs_view[i];
+      for (int k = 0; k < bs; ++k)
+      {
+        assert(bs * cell_dofs[i] + k < (int)collapsed_map.size());
+        assert(bs * i + k < cell_dofs_view.rows());
+        collapsed_map[bs * cell_dofs[i] + k] = cell_dofs_view[bs * i + k];
+      }
     }
+    // for (Eigen::Index i = 0; i < cell_dofs_view.rows(); ++i)
+    // {
+    //   assert(cell_dofs[i] < (int)collapsed_map.size());
+    //   collapsed_map[cell_dofs[i]] = cell_dofs_view[i];
+    // }
   }
   // std::cout << "Step 5 " << std::endl;
 
+  std::cout << "Done with collapse" << std::endl;
   return {std::move(dofmap_new), std::move(collapsed_map)};
 }
 //-----------------------------------------------------------------------------

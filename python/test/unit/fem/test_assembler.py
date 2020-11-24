@@ -449,7 +449,7 @@ def test_assembly_solve_block(mode):
 
 
 @pytest.mark.parametrize("mesh", [
-    UnitSquareMesh(MPI.COMM_WORLD, 1, 1, ghost_mode=dolfinx.cpp.mesh.GhostMode.none),
+    UnitSquareMesh(MPI.COMM_WORLD, 2, 2, ghost_mode=dolfinx.cpp.mesh.GhostMode.none),
     # UnitSquareMesh(MPI.COMM_WORLD, 12, 11, ghost_mode=dolfinx.cpp.mesh.GhostMode.none),
     # UnitSquareMesh(MPI.COMM_WORLD, 12, 11, ghost_mode=dolfinx.cpp.mesh.GhostMode.shared_facet),
     # UnitCubeMesh(MPI.COMM_WORLD, 3, 7, 3, ghost_mode=dolfinx.cpp.mesh.GhostMode.none),
@@ -485,15 +485,15 @@ def test_assembly_solve_taylor_hood(mesh):
     u, p = ufl.TrialFunction(P2), ufl.TrialFunction(P1)
     v, q = ufl.TestFunction(P2), ufl.TestFunction(P1)
 
-    # a00 = inner(ufl.grad(u), ufl.grad(v)) * dx
-    # a01 = ufl.inner(p, ufl.div(v)) * dx
-    # a10 = ufl.inner(ufl.div(u), q) * dx
-    # a11 = None
-
     a00 = inner(ufl.grad(u), ufl.grad(v)) * dx
-    a01 = None
-    a10 = None
-    a11 = inner(ufl.grad(p), ufl.grad(q)) * dx
+    a01 = ufl.inner(p, ufl.div(v)) * dx
+    a10 = ufl.inner(ufl.div(u), q) * dx
+    a11 = None
+
+    # a00 = inner(ufl.grad(u), ufl.grad(v)) * dx
+    # a01 = None
+    # a10 = None
+    # a11 = inner(ufl.grad(p), ufl.grad(q)) * dx
 
     p00 = a00
     p01, p10 = None, None
@@ -592,16 +592,18 @@ def test_assembly_solve_taylor_hood(mesh):
     p11 = ufl.inner(p, q) * dx
     p_form = p00 + p11
 
-    return
-
-
     f = dolfinx.Function(W.sub(0).collapse())
     p_zero = dolfinx.Function(W.sub(1).collapse())
     L0 = inner(f, v) * dx
     L1 = inner(p_zero, q) * dx
     L = L0 + L1
 
+    # P1 = function.FunctionSpace(mesh, ("Lagrange", 1))
+    # P1 = function.VectorFunctionSpace(mesh, ("Lagrange", 1))
+    # print("***:", W.sub(0).dofmap.bs)
+    # return
     bdofsW0_P2_0 = dolfinx.fem.locate_dofs_topological((W.sub(0), P2), facetdim, bndry_facets0)
+    return
     bdofsW0_P2_1 = dolfinx.fem.locate_dofs_topological((W.sub(0), P2), facetdim, bndry_facets1)
 
     bc0 = dolfinx.DirichletBC(u0, bdofsW0_P2_0, W.sub(0))

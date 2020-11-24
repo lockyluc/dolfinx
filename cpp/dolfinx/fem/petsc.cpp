@@ -119,7 +119,7 @@ la::PETScMatrix fem::create_matrix_block(
   la::SparsityPattern pattern(mesh->mpi_comm(), p, maps, bs);
   pattern.assemble();
 
-  std::cout << pattern.diagonal_pattern().str() << std::endl;
+  // std::cout << pattern.diagonal_pattern().str() << std::endl;
 
   // FIXME: Add option to pass customised local-to-global map to PETSc
   // Mat constructor.
