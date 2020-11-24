@@ -110,7 +110,7 @@ fem::DofMap build_collapsed_dofmap(MPI_Comm comm, const DofMap& dofmap_view,
   for (auto it = dofs_in_view.begin(); it != it_unowned0; ++it)
   {
     const std::size_t index_new = std::distance(dofs_in_view.begin(), it);
-    assert(*it / map_bs < global_index.size());
+    assert(*it / map_bs < (int) global_index.size());
     global_index[*it / map_bs] = index_new + process_offset;
   }
 
