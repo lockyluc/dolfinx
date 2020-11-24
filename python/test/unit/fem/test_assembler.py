@@ -263,22 +263,22 @@ def test_matrix_assembly_block(mode):
     Anorm0 = A0.norm()
     bnorm0 = b0.norm()
 
-    # # Nested (MatNest)
-    # A1 = dolfinx.fem.assemble_matrix_nest(a_block, [bc])
-    # A1.assemble()
-    # Anorm1 = nest_matrix_norm(A1)
-    # assert Anorm0 == pytest.approx(Anorm1, 1.0e-12)
+    # Nested (MatNest)
+    A1 = dolfinx.fem.assemble_matrix_nest(a_block, [bc])
+    A1.assemble()
+    Anorm1 = nest_matrix_norm(A1)
+    assert Anorm0 == pytest.approx(Anorm1, 1.0e-12)
 
-    # b1 = dolfinx.fem.assemble_vector_nest(L_block)
-    # dolfinx.fem.apply_lifting_nest(b1, a_block, [bc])
-    # for b_sub in b1.getNestSubVecs():
-    #     b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-    # bcs0 = dolfinx.cpp.fem.bcs_rows(dolfinx.fem.assemble._create_cpp_form(L_block), [bc])
-    # dolfinx.fem.set_bc_nest(b1, bcs0)
-    # b1.assemble()
+    b1 = dolfinx.fem.assemble_vector_nest(L_block)
+    dolfinx.fem.apply_lifting_nest(b1, a_block, [bc])
+    for b_sub in b1.getNestSubVecs():
+        b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+    bcs0 = dolfinx.cpp.fem.bcs_rows(dolfinx.fem.assemble._create_cpp_form(L_block), [bc])
+    dolfinx.fem.set_bc_nest(b1, bcs0)
+    b1.assemble()
 
-    # bnorm1 = math.sqrt(sum([x.norm()**2 for x in b1.getNestSubVecs()]))
-    # assert bnorm0 == pytest.approx(bnorm1, 1.0e-12)
+    bnorm1 = math.sqrt(sum([x.norm()**2 for x in b1.getNestSubVecs()]))
+    assert bnorm0 == pytest.approx(bnorm1, 1.0e-12)
 
     # Monolithic version
     E = P0 * P1
