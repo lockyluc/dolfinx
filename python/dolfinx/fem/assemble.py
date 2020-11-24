@@ -42,7 +42,7 @@ def create_vector_block(L: typing.List[typing.Union[Form, cpp.fem.Form]]) -> PET
     dofmaps = [form.function_spaces[0].dofmap for form in _create_cpp_form(L)]
     maps = [dofmap.index_map for dofmap in dofmaps]
     bs = [dofmap.bs for dofmap in dofmaps]
-    return cpp.fem.create_vector_block(maps)
+    return cpp.fem.create_vector_block(maps, bs)
 
 
 def create_vector_nest(L: typing.List[typing.Union[Form, cpp.fem.Form]]) -> PETSc.Vec:
