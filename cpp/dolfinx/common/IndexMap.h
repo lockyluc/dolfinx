@@ -24,6 +24,7 @@ class IndexMap;
 /// required to compute the new ghost indices.
 ///
 /// @param[in] maps List of index maps
+/// @param[in] bs Block size for each index map in maps
 /// @returns The (0) global offset of a stacked map for this rank, (1)
 ///   local offset for each submap in the stacked map, and (2) new
 ///   indices for the ghosts for each submap (3) owner rank of each ghost
@@ -32,7 +33,8 @@ std::tuple<std::int64_t, std::vector<std::int32_t>,
            std::vector<std::vector<std::int64_t>>,
            std::vector<std::vector<int>>>
 stack_index_maps(
-    const std::vector<std::reference_wrapper<const common::IndexMap>>& maps);
+    const std::vector<std::reference_wrapper<const common::IndexMap>>& maps,
+    const std::vector<int>& bs);
 
 /// This class represents the distribution index arrays across
 /// processes. An index array is a contiguous collection of N+1 indices

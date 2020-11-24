@@ -38,6 +38,8 @@ la::PETScMatrix fem::create_matrix_block(
         const Eigen::Array<const fem::Form<PetscScalar>*, Eigen::Dynamic,
                            Eigen::Dynamic, Eigen::RowMajor>>& a)
 {
+  // FIXME X: check that dofmaps are not views?
+
   // Extract and check row/column ranges
   auto V = function::common_function_spaces(extract_function_spaces(a));
 
@@ -90,10 +92,14 @@ la::PETScMatrix fem::create_matrix_block(
   // Compute offsets for the fields
   std::array<std::vector<std::reference_wrapper<const common::IndexMap>>, 2>
       maps;
+  std::array<std::vector<int>, 2> bs;
   for (std::size_t d = 0; d < 2; ++d)
   {
     for (auto space : V[d])
+    {
       maps[d].push_back(*space->dofmap()->index_map.get());
+      bs[d].push_back(space->dofmap()->index_map_bs());
+    }
   }
 
   // FIXME: This is computed again inside the SparsityPattern
@@ -101,21 +107,20 @@ la::PETScMatrix fem::create_matrix_block(
   // local-to-global map. Compute outside and pass into SparsityPattern
   // constructor.
   auto [rank_offset, local_offset, ghosts, owner]
-      = common::stack_index_maps(maps[0]);
+      = common::stack_index_maps(maps[0], bs[0]);
 
   // Create merged sparsity pattern
   std::vector<std::vector<const la::SparsityPattern*>> p(V[0].size());
   for (std::size_t row = 0; row < V[0].size(); ++row)
     for (std::size_t col = 0; col < V[1].size(); ++col)
       p[row].push_back(patterns[row][col].get());
-  la::SparsityPattern pattern(mesh->mpi_comm(), p, maps);
+  la::SparsityPattern pattern(mesh->mpi_comm(), p, maps, bs);
   pattern.assemble();
 
   // FIXME: Add option to pass customised local-to-global map to PETSc
   // Mat constructor.
 
   // Initialise matrix
-  throw std::runtime_error("Nest mat needs updating");
   la::PETScMatrix A(mesh->mpi_comm(), pattern, {});
 
   // Create row and column local-to-global maps (field0, field1, field2,
@@ -126,9 +131,9 @@ la::PETScMatrix fem::create_matrix_block(
     for (std::size_t f = 0; f < maps[d].size(); ++f)
     {
       const common::IndexMap& map = maps[d][f].get();
-      // const int bs = map.block_size();
-      const int bs = 1;
-      const std::int32_t size_local = bs * map.size_local();
+      // // const int bs = map.block_size();
+      // const int bs = 1;
+      const std::int32_t size_local = bs[d][f] * map.size_local();
       const std::vector global = map.global_indices();
       for (std::int32_t i = 0; i < size_local; ++i)
         _maps[d].push_back(i + rank_offset + local_offset[f]);
@@ -195,12 +200,13 @@ la::PETScMatrix fem::create_matrix_nest(
 }
 //-----------------------------------------------------------------------------
 la::PETScVector fem::create_vector_block(
-    const std::vector<std::reference_wrapper<const common::IndexMap>>& maps)
+    const std::vector<std::reference_wrapper<const common::IndexMap>>& maps,
+    const std::vector<int>& bs)
 {
   // FIXME: handle constant block size > 1
 
   auto [rank_offset, local_offset, ghosts_new, ghost_new_owners]
-      = common::stack_index_maps(maps);
+      = common::stack_index_maps(maps, bs);
   std::int32_t local_size = local_offset.back();
 
   std::vector<std::int64_t> ghosts;

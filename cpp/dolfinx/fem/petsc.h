@@ -46,7 +46,8 @@ la::PETScMatrix create_matrix_nest(
 
 /// Initialise monolithic vector. Vector is not zeroed.
 la::PETScVector create_vector_block(
-    const std::vector<std::reference_wrapper<const common::IndexMap>>& maps);
+    const std::vector<std::reference_wrapper<const common::IndexMap>>& maps,
+    const std::vector<int>& bs);
 
 /// Create nested (VecNest) vector. Vector is not zeroed.
 la::PETScVector

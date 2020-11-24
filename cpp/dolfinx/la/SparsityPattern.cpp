@@ -31,16 +31,17 @@ SparsityPattern::SparsityPattern(
     MPI_Comm comm,
     const std::vector<std::vector<const SparsityPattern*>>& patterns,
     const std::array<
-        std::vector<std::reference_wrapper<const common::IndexMap>>, 2>& maps)
+        std::vector<std::reference_wrapper<const common::IndexMap>>, 2>& maps,
+    const std::array<std::vector<int>, 2>& bs)
     : _mpi_comm(comm)
 {
   // FIXME: - Add range/bound checks for each block
   //        - Check for compatible block sizes for each block
 
   const auto [rank_offset0, local_offset0, ghosts_new0, owners0]
-      = common::stack_index_maps(maps[0]);
+      = common::stack_index_maps(maps[0], bs[0]);
   const auto [rank_offset1, local_offset1, ghosts_new1, owners1]
-      = common::stack_index_maps(maps[1]);
+      = common::stack_index_maps(maps[1], bs[1]);
 
   std::vector<std::int64_t> ghosts0, ghosts1;
   std::vector<std::int32_t> ghost_offsets0(1, 0);

@@ -52,9 +52,9 @@ la::create_petsc_index_sets(const std::vector<const common::IndexMap*>& maps,
   {
     assert(maps[i]);
     const std::int32_t size = maps[i]->size_local() + maps[i]->num_ghosts();
-    std::vector<PetscInt> index(bs[i] * size);
+    std::vector<PetscInt> index(size);
     std::iota(index.begin(), index.end(), offset);
-    ISCreateBlock(PETSC_COMM_SELF, 1, index.size(), index.data(),
+    ISCreateBlock(PETSC_COMM_SELF, bs[i], index.size(), index.data(),
                   PETSC_COPY_VALUES, &is[i]);
     offset += bs[i] * size;
   }

@@ -298,8 +298,10 @@ def _(A: PETSc.Mat,
     """Assemble bilinear forms into matrix"""
     _a = _create_cpp_form(a)
     V = _extract_function_spaces(_a)
-    is_rows = cpp.la.create_petsc_index_sets([Vsub.dofmap.index_map for Vsub in V[0]])
-    is_cols = cpp.la.create_petsc_index_sets([Vsub.dofmap.index_map for Vsub in V[1]])
+    is_rows = cpp.la.create_petsc_index_sets([Vsub.dofmap.index_map for Vsub in V[0]],
+                                             [Vsub.dofmap.index_map_bs for Vsub in V[0]])
+    is_cols = cpp.la.create_petsc_index_sets([Vsub.dofmap.index_map for Vsub in V[1]],
+                                             [Vsub.dofmap.index_map_bs for Vsub in V[1]])
     for i, a_row in enumerate(_a):
         for j, a_sub in enumerate(a_row):
             if a_sub is not None:
