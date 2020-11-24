@@ -98,12 +98,13 @@ void assemble_matrix(
     const Form<T>& a,
     const std::vector<std::shared_ptr<const DirichletBC<T>>>& bcs)
 {
+  // std::cout << "Assemble matrix: " << std::endl;
 
   // Index maps for dof ranges
   auto map0 = a.function_spaces().at(0)->dofmap()->index_map;
-  auto bs0 = a.function_spaces().at(0)->element()->block_size();
+  auto bs0 = a.function_spaces().at(0)->dofmap()->bs();
   auto map1 = a.function_spaces().at(1)->dofmap()->index_map;
-  auto bs1 = a.function_spaces().at(1)->element()->block_size();
+  auto bs1 = a.function_spaces().at(1)->dofmap()->bs();
 
   // Build dof markers
   std::vector<bool> dof_marker0, dof_marker1;
@@ -128,7 +129,9 @@ void assemble_matrix(
   }
 
   // Assemble
+  // std::cout << "Assemble matrix (pre): " << std::endl;
   impl::assemble_matrix(mat_add, a, dof_marker0, dof_marker1);
+  // std::cout << "Assemble matrix (prost): " << std::endl;
 }
 
 /// Assemble bilinear form into a matrix. Matrix must already be

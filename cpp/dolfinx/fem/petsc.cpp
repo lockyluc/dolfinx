@@ -41,7 +41,8 @@ la::PETScMatrix fem::create_matrix_block(
   // FIXME X: check that dofmaps are not views?
 
   // Extract and check row/column ranges
-  auto V = function::common_function_spaces(extract_function_spaces(a));
+  std::array<std::vector<std::shared_ptr<const function::FunctionSpace>>, 2> V
+      = function::common_function_spaces(extract_function_spaces(a));
 
   std::shared_ptr mesh = V[0][0]->mesh();
   assert(mesh);
@@ -99,6 +100,7 @@ la::PETScMatrix fem::create_matrix_block(
     {
       maps[d].push_back(*space->dofmap()->index_map.get());
       bs[d].push_back(space->dofmap()->index_map_bs());
+      // std::cout << "Block size: " << bs[d].back() << std::endl;
     }
   }
 
@@ -121,7 +123,10 @@ la::PETScMatrix fem::create_matrix_block(
   // Mat constructor.
 
   // Initialise matrix
-  la::PETScMatrix A(mesh->mpi_comm(), pattern, {});
+  // FIXME X: handle block size
+  la::PETScMatrix A(mesh->mpi_comm(), pattern, {1, 1});
+  // std::cout << "Pattern" << std::endl;
+  // std::cout << pattern.diagonal_pattern().str() << std::endl;
 
   // Create row and column local-to-global maps (field0, field1, field2,
   // etc), i.e. ghosts of field0 appear before owned indices of field1
@@ -131,6 +136,7 @@ la::PETScMatrix fem::create_matrix_block(
     for (std::size_t f = 0; f < maps[d].size(); ++f)
     {
       const common::IndexMap& map = maps[d][f].get();
+      // FIXME X
       // // const int bs = map.block_size();
       // const int bs = 1;
       const std::int32_t size_local = bs[d][f] * map.size_local();

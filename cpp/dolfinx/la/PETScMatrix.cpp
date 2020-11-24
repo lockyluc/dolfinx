@@ -31,7 +31,7 @@ Mat la::create_petsc_matrix(
   if (ierr != 0)
     petsc_error(ierr, __FILE__, "MatCreate");
 
-  // MatSetType(A, MATBAIJ);
+  // MatSetType(A, MATBAIJ);<
 
   // Get IndexMaps from sparsity patterm, and block size
   std::array index_maps{sparsity_pattern.index_map(0),
@@ -42,6 +42,9 @@ Mat la::create_petsc_matrix(
   const std::int64_t N = bs[1] * index_maps[1]->size_global();
   const std::int32_t m = bs[0] * index_maps[0]->size_local();
   const std::int32_t n = bs[1] * index_maps[1]->size_local();
+  // std::cout << "XXX Sizes: " << bs[0] << ", " << index_maps[0]->size_global()
+  //           << std::endl;
+  // std::cout << "XXX Sizes: " << m << ", " << n << std::endl;
 
   // Set matrix size
   ierr = MatSetSizes(A, m, n, M, N);
@@ -192,13 +195,22 @@ PETScMatrix::add_fn(Mat A)
     // std::cout << "data" << std::endl;
     // for (int i = 0; i < 4 * m * n; ++i)
     //   std::cout << "  cols: " << vals[i] << std::endl;
+    // std::cout << "Add values: " << m << ", " << n << std::endl;
+    // for (int i = 0; i < m; ++i)
+    //   std::cout << "r: " << rows[i] << std::endl;
+    // for (int i = 0; i < n; ++i)
+    //   std::cout << "c: " << cols[i] << std::endl;
+    // for (int i = 0; i < m * n; ++i)
+    //   std::cout << "v: " << vals[i] << std::endl;
     ierr = MatSetValuesLocal(A, m, rows, n, cols, vals, ADD_VALUES);
+    // std::cout << "Add values (post)" << std::endl;
 #endif
 
 #ifdef DEBUG
     if (ierr != 0)
       la::petsc_error(ierr, __FILE__, "MatSetValuesLocal");
 #endif
+    // std::cout << "End " << std::endl;
     return 0;
   };
 }

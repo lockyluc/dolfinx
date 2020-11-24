@@ -39,7 +39,9 @@ def create_vector(L: typing.Union[Form, cpp.fem.Form]) -> PETSc.Vec:
 
 
 def create_vector_block(L: typing.List[typing.Union[Form, cpp.fem.Form]]) -> PETSc.Vec:
-    maps = [form.function_spaces[0].dofmap.index_map for form in _create_cpp_form(L)]
+    dofmaps = [form.function_spaces[0].dofmap for form in _create_cpp_form(L)]
+    maps = [dofmap.index_map for dofmap in dofmaps]
+    bs = [dofmap.bs for dofmap in dofmaps]
     return cpp.fem.create_vector_block(maps)
 
 
@@ -143,8 +145,10 @@ def assemble_vector_block(L: typing.List[typing.Union[Form, cpp.fem.Form]],
     finalised, i.e. ghost values are not accumulated.
 
     """
-    maps = [form.function_spaces[0].dofmap.index_map for form in _create_cpp_form(L)]
-    b = cpp.fem.create_vector_block(maps)
+    dofmaps = [form.function_spaces[0].dofmap for form in _create_cpp_form(L)]
+    maps = [dofmap.index_map for dofmap in dofmaps]
+    bs = [dofmap.bs for dofmap in dofmaps]
+    b = cpp.fem.create_vector_block(maps, bs)
     with b.localForm() as b_local:
         b_local.set(0.0)
     return assemble_vector_block(b, L, a, bcs, x0, scale)
@@ -162,28 +166,31 @@ def _(b: PETSc.Vec,
     accumulated.
 
     """
-    maps = [form.function_spaces[0].dofmap.index_map for form in _create_cpp_form(L)]
+    dofmaps = [form.function_spaces[0].dofmap for form in _create_cpp_form(L)]
+    maps = [dofmap.index_map for dofmap in dofmaps]
+    bs = [dofmap.bs for dofmap in dofmaps]
+    # maps = [form.function_spaces[0].dofmap.index_map for form in _create_cpp_form(L)]
     if x0 is not None:
-        x0_local = cpp.la.get_local_vectors(x0, maps)
+        x0_local = cpp.la.get_local_vectors(x0, maps, bs)
         x0_sub = x0_local
     else:
         x0_local = []
         x0_sub = [None] * len(maps)
 
     bcs1 = cpp.fem.bcs_cols(_create_cpp_form(a), bcs)
-    b_local = cpp.la.get_local_vectors(b, maps)
+    b_local = cpp.la.get_local_vectors(b, maps, bs)
     for b_sub, L_sub, a_sub, bc in zip(b_local, L, a, bcs1):
         cpp.fem.assemble_vector(b_sub, _create_cpp_form(L_sub))
         cpp.fem.apply_lifting(b_sub, _create_cpp_form(a_sub), bc, x0_local, scale)
 
-    cpp.la.scatter_local_vectors(b, b_local, maps)
+    cpp.la.scatter_local_vectors(b, b_local, maps, bs)
     b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
     bcs0 = cpp.fem.bcs_rows(_create_cpp_form(L), bcs)
     offset = 0
     b_array = b.getArray(readonly=False)
-    for submap, bc, _x0 in zip(maps, bcs0, x0_sub):
-        size = submap.size_local * submap.block_size
+    for submap, _bs, bc, _x0 in zip(maps, bs, bcs0, x0_sub):
+        size = submap.size_local * _bs
         cpp.fem.set_bc(b_array[offset:offset + size], bc, _x0, scale)
         offset += size
 
@@ -256,7 +263,7 @@ def assemble_matrix_block(a: typing.List[typing.List[typing.Union[Form, cpp.fem.
                           diagonal: float = 1.0) -> PETSc.Mat:
     """Assemble bilinear forms into matrix"""
     A = cpp.fem.create_matrix_block(_create_cpp_form(a))
-    A.zeroEntries()
+    # A.zeroEntries()
     return assemble_matrix_block(A, a, bcs, diagonal)
 
 
@@ -305,8 +312,13 @@ def _(A: PETSc.Mat,
     for i, a_row in enumerate(_a):
         for j, a_sub in enumerate(a_row):
             if a_sub is not None:
+                # print("Get local matrix")
                 Asub = A.getLocalSubMatrix(is_rows[i], is_cols[j])
+                # print("Assemble local matrix")
+                # is_rows[i].view()
+                # is_cols[j].view()
                 assemble_matrix(Asub, a_sub, bcs, diagonal)
+                # print("Restore")
                 A.restoreLocalSubMatrix(is_rows[i], is_cols[j], Asub)
     return A
 
