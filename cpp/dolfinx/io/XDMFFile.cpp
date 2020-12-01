@@ -191,6 +191,7 @@ XDMFFile::read_topology_data(const std::string name,
   if (!grid_node)
     throw std::runtime_error("<Grid> with name '" + name + "' not found.");
 
+  LOG(INFO) << "Read topology data \"" << name << "\" at \"" << xpath << "\"";
   return xdmf_mesh::read_topology_data(_mpi_comm.comm(), _h5_id, grid_node);
 }
 //-----------------------------------------------------------------------------
@@ -207,6 +208,7 @@ XDMFFile::read_geometry_data(const std::string name,
   if (!grid_node)
     throw std::runtime_error("<Grid> with name '" + name + "' not found.");
 
+  LOG(INFO) << "Read geometry data \"" << name << "\" at \"" << xpath << "\"";
   return xdmf_mesh::read_geometry_data(_mpi_comm.comm(), _h5_id, grid_node);
 }
 //-----------------------------------------------------------------------------

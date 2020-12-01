@@ -332,11 +332,13 @@ HDF5Interface::read_dataset(const hid_t file_handle,
     data_size *= count[i];
   std::vector<T> data(data_size);
 
+  LOG(INFO) << "Starting read";
   // Read data on each process
   const hid_t h5type = hdf5_type<T>();
   status
       = H5Dread(dset_id, h5type, memspace, dataspace, H5P_DEFAULT, data.data());
   assert(status != HDF5_FAIL);
+  LOG(INFO) << "Finished read";
 
   // Close dataspace
   status = H5Sclose(dataspace);
