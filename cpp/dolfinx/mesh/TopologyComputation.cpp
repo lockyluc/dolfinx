@@ -100,10 +100,13 @@ get_local_indexing(
         entity_list,
     const std::vector<std::int32_t>& entity_index)
 {
-  // Get first occurence in entity list of each entity
-  std::vector<std::int32_t> unique_row(entity_list.rows(), -1);
+  if ((int)entity_index.size() != entity_list.rows())
+    throw std::runtime_error("Error in topology computation");
+
+  // Get first occurence in entity_index of each entity
+  std::vector<std::int32_t> unique_row(entity_index.size(), -1);
   std::int32_t entity_count = 0;
-  for (int i = 0; i < entity_list.rows(); ++i)
+  for (std::size_t i = 0; i < entity_index.size(); ++i)
   {
     const std::int32_t idx = entity_index[i];
     if (unique_row[idx] == -1)
@@ -168,11 +171,10 @@ get_local_indexing(
   for (int i = 0; i < neighbor_size; ++i)
     proc_to_neighbor.insert({neighbors[i], i});
 
-  std::vector<std::vector<std::int64_t>> send_entities(neighbor_size);
-  std::vector<std::vector<std::int32_t>> send_index(neighbor_size);
-
   // Get all "possibly shared" entities, based on vertex sharing. Send to
   // other processes, and see if we get the same back.
+  std::vector<std::vector<std::int64_t>> send_entities(neighbor_size);
+  std::vector<std::vector<std::int32_t>> send_index(neighbor_size);
 
   // Map for entities to entity index, using global vertex indices
   std::map<std::vector<std::int64_t>, std::int32_t>
@@ -188,6 +190,7 @@ get_local_indexing(
     procs.clear();
     for (int j = 0; j < num_vertices; ++j)
     {
+      // Add the number of hits of this vertex on each sharing process
       const int v = entity_list(i, j);
       if (auto it = shared_vertices.find(v); it != shared_vertices.end())
       {
@@ -275,7 +278,7 @@ get_local_indexing(
     }
   }
 
-  // Add this rank to the list of sharing processes
+  // Add this rank (self) to the list of sharing processes
   const int mpi_rank = dolfinx::MPI::rank(comm);
   for (auto& q : shared_entities)
     q.second.insert(mpi_rank);
@@ -385,7 +388,13 @@ get_local_indexing(
       }
     }
     for (std::int64_t idx : ghost_indices)
-      assert(idx != -1);
+    {
+      if (idx == -1)
+      {
+        throw std::runtime_error(
+            "Error in topology computation - unassigned entity ownership");
+      }
+    }
   }
 
   MPI_Comm_free(&neighbor_comm);
