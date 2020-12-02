@@ -332,13 +332,14 @@ HDF5Interface::read_dataset(const hid_t file_handle,
     data_size *= count[i];
   std::vector<T> data(data_size);
 
-  LOG(INFO) << "Starting read";
+  int mpi_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+  LOG(INFO) << "Starting read on: " << mpi_rank;
   // Read data on each process
   const hid_t h5type = hdf5_type<T>();
   status
       = H5Dread(dset_id, h5type, memspace, dataspace, H5P_DEFAULT, data.data());
   assert(status != HDF5_FAIL);
-  LOG(INFO) << "Finished read";
 
   // Close dataspace
   status = H5Sclose(dataspace);
@@ -351,6 +352,8 @@ HDF5Interface::read_dataset(const hid_t file_handle,
   // Close dataset
   status = H5Dclose(dset_id);
   assert(status != HDF5_FAIL);
+
+  LOG(INFO) << "Finished read on: " << mpi_rank;
 
   return data;
 }
