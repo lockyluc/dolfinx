@@ -6,9 +6,21 @@
 
 #include "defines.h"
 #include "types.h"
+#include <Eigen/Core>
 #include <hdf5.h>
+#include <iostream>
 #include <petscversion.h>
 
+#define str_macro(X) #X
+#define str(X) str_macro(X)
+
+void dolfinx::print_max_align()
+{
+  std::cout << "EIGEN_MAX_ALIGN_BYTES=" << str(EIGEN_MAX_ALIGN_BYTES) << "\n";
+  std::cout << "EIGEN_MAX_STATIC_ALIGN_BYTES="
+            << str(EIGEN_MAX_STATIC_ALIGN_BYTES) << "\n";
+  std::cout << "EIGEN_VECTORIZE_AVX512=" << str(EIGEN_VECTORIZE_AVX512) << "\n";
+}
 //-------------------------------------------------------------------------
 std::string dolfinx::version() { return std::string(DOLFINX_VERSION); }
 //-------------------------------------------------------------------------

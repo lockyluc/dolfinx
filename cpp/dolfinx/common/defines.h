@@ -11,6 +11,8 @@
 namespace dolfinx
 {
 
+void print_max_align();
+
 /// Return DOLFINX version string
 std::string version();
 
