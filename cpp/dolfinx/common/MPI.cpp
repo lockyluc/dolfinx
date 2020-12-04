@@ -6,6 +6,7 @@
 
 #include "MPI.h"
 #include "SubSystemsManager.h"
+#include "log.h"
 #include <algorithm>
 #include <numeric>
 
@@ -140,12 +141,18 @@ std::vector<int> dolfinx::MPI::compute_graph_edges(MPI_Comm comm,
                                                    const std::set<int>& edges)
 {
   // Send '1' to ranks that I have a edge to
+  LOG(INFO) << "Compute graph edges";
+  std::string s;
+  for (int e : edges)
+    s += std::to_string(e) + " ";
+  LOG(INFO) << s;
   std::vector<std::uint8_t> edge_count(dolfinx::MPI::size(comm), 0);
-  for (auto e : edges)
+  for (int e : edges)
     edge_count[e] = 1;
   std::vector<std::uint8_t> in_edge_count(dolfinx::MPI::size(comm), -1);
   MPI_Alltoall(edge_count.data(), 1, MPI_UINT8_T, in_edge_count.data(), 1,
                MPI_UINT8_T, comm);
+  LOG(INFO) << "Got in_edge_count (" << in_edge_count.size() << ")";
 
   // Build list of rank that had an edge to me
   std::vector<int> edges1;

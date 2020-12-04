@@ -78,6 +78,11 @@ std::vector<T> get_dataset(MPI_Comm comm, const pugi::xml_node& dataset_node,
     const std::vector shape_hdf5
         = HDF5Interface::get_dataset_shape(h5_id, paths[1]);
 
+    std::string message = "HDF5 dataset of size: ";
+    for (int q : shape_hdf5)
+      message += std::to_string(q) + "x";
+    LOG(INFO) << message;
+
     // FIXME: should we support empty data sets?
     // Check that data set is not empty
     assert(!shape_hdf5.empty());
