@@ -14,8 +14,8 @@ jobs:
     strategy:
       matrix:
         # os: [ubuntu-20.04, macos-10.15]
-        # os: [ubuntu-20.04]
-        os: [macos-10.15]
+        os: [ubuntu-20.04]
+        # os: [macos-10.15]
       fail-fast: false
     runs-on: ${{ matrix.os }}
 
@@ -34,10 +34,8 @@ jobs:
       - name: Install compilers
         run: |
           sudo apt-get update
-          # sudo apt-get install grub-efi
-          # sudo update-grub
           sudo apt-get upgrade
-          sudo apt-get install g++-10 gfortran-10 grub-efi
+          sudo apt-get install g++-10 gfortran-10
         if: matrix.os == 'ubuntu-20.04'
 
       - name: Get Spack
