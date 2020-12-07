@@ -22,8 +22,7 @@ using namespace dolfinx::mesh;
 //-----------------------------------------------------------------------------
 graph::AdjacencyList<std::int32_t> Partitioning::partition_cells(
     MPI_Comm comm, int nparts, const mesh::CellType cell_type,
-    const graph::AdjacencyList<std::int64_t>& cells, mesh::GhostMode ghost_mode,
-    mesh::Partitioner partitioner)
+    const graph::AdjacencyList<std::int64_t>& cells, mesh::GhostMode ghost_mode)
 {
   common::Timer timer("Partition cells across processes");
   LOG(INFO) << "Compute partition of cells across processes";
@@ -52,6 +51,8 @@ graph::AdjacencyList<std::int32_t> Partitioning::partition_cells(
 
   // Just flag any kind of ghosting for now
   bool ghosting = (ghost_mode != mesh::GhostMode::none);
+
+  const Partitioner partitioner = Partitioner::parmetis;
 
   switch (partitioner)
   {

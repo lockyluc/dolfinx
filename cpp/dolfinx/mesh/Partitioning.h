@@ -50,8 +50,7 @@ namespace Partitioning
 graph::AdjacencyList<std::int32_t>
 partition_cells(MPI_Comm comm, int n, const mesh::CellType cell_type,
                 const graph::AdjacencyList<std::int64_t>& cells,
-                mesh::GhostMode ghost_mode,
-                mesh::Partitioner partitioner = mesh::Partitioner::parmetis);
+                mesh::GhostMode ghost_mode);
 
 } // namespace Partitioning
 } // namespace dolfinx::mesh
