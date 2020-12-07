@@ -346,6 +346,7 @@ get_local_indexing(
   {
     const std::int64_t local_offset
         = dolfinx::MPI::global_offset(comm, num_local, true);
+    LOG(INFO) << "Local offset = " << local_offset << " [" << mpi_rank << "]";
 
     std::vector<std::int64_t> send_global_index_data;
     std::vector<int> send_global_index_offsets = {0};
@@ -367,6 +368,8 @@ get_local_indexing(
 
       send_global_index_offsets.push_back(send_global_index_data.size());
     }
+    LOG(INFO) << "Neighbour all-to-all [" << mpi_rank << "]";
+
     const graph::AdjacencyList<std::int64_t> recv_data
         = dolfinx::MPI::neighbor_all_to_all(
             neighbor_comm, send_global_index_offsets, send_global_index_data);
@@ -377,6 +380,9 @@ get_local_indexing(
         = recv_data.offsets();
 
     assert(recv_global_index_data.size() == (int)recv_index.size());
+
+    LOG(INFO) << "Received data size= " << recv_global_index_data.size() << "/"
+              << recv_index.size() << " [" << mpi_rank << "]";
 
     // Map back received indices
     for (int j = 0; j < recv_global_index_data.size(); ++j)
@@ -403,8 +409,9 @@ get_local_indexing(
     }
   }
 
-  MPI_Comm_free(&neighbor_comm);
   LOG(INFO) << "Free neighbour comm [" << mpi_rank << "]";
+  MPI_Comm_free(&neighbor_comm);
+  LOG(INFO) << "Freed neighbour comm [" << mpi_rank << "]";
 
   auto index_map = std::make_shared<common::IndexMap>(
       comm, num_local,
