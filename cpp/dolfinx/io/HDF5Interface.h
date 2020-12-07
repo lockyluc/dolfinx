@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cassert>
+#include <chrono>
 #include <cstdint>
 #include <dolfinx/common/log.h>
 #include <hdf5.h>
@@ -334,6 +335,7 @@ HDF5Interface::read_dataset(const hid_t file_handle,
 
   int mpi_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+  auto timer_start = std::chrono::system_clock::now();
   LOG(INFO) << "Starting read on: " << mpi_rank;
   // Read data on each process
   const hid_t h5type = hdf5_type<T>();
@@ -353,7 +355,12 @@ HDF5Interface::read_dataset(const hid_t file_handle,
   status = H5Dclose(dset_id);
   assert(status != HDF5_FAIL);
 
-  LOG(INFO) << "Finished read on: " << mpi_rank;
+  auto timer_end = std::chrono::system_clock::now();
+  std::chrono::duration<double> dt = (timer_end - timer_start);
+
+  double data_rate = data.size() * sizeof(T) / (1e6 * dt.count());
+
+  LOG(INFO) << "Finished read on: " << mpi_rank << ": " << data_rate << "MB/s";
 
   return data;
 }

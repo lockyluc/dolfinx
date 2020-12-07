@@ -165,10 +165,11 @@ mesh::Mesh XDMFFile::read_mesh(const fem::CoordinateElement& element,
                                const std::string xpath) const
 {
   // Read mesh data
+  const auto x = XDMFFile::read_geometry_data(name, xpath);
+
   const Eigen::Array<std::int64_t, Eigen::Dynamic, Eigen::Dynamic,
                      Eigen::RowMajor>
       cells = XDMFFile::read_topology_data(name, xpath);
-  const auto x = XDMFFile::read_geometry_data(name, xpath);
 
   // Create mesh
   graph::AdjacencyList<std::int64_t> cells_adj(cells);
