@@ -6,6 +6,7 @@
 
 #include "IndexMap.h"
 #include <algorithm>
+#include <dolfinx/common/log.h>
 #include <numeric>
 #include <unordered_map>
 
@@ -384,6 +385,8 @@ IndexMap::IndexMap(
     : _comm_owner_to_ghost(MPI_COMM_NULL), _comm_ghost_to_owner(MPI_COMM_NULL),
       _comm_symmetric(MPI_COMM_NULL), _ghosts(ghosts)
 {
+  LOG(INFO) << "Create IndexMap";
+
   assert(size_t(ghosts.size()) == src_ranks.size());
   assert(src_ranks == get_ghost_ranks(mpi_comm, local_size, _ghosts));
 
@@ -430,6 +433,8 @@ IndexMap::IndexMap(
     _ghost_owners[j] = p_neighbor;
   }
 
+  LOG(INFO) << "Create IndexMap: communicators";
+
   // Create communicators with directional edges:
   // (0) owner -> ghost, (1) ghost -> owner, (2) two-way
   std::array comm_array
@@ -455,8 +460,12 @@ IndexMap::IndexMap(
       shared_ind.begin(), shared_ind.end(), _shared_indices.begin(),
       [offset = offset](std::int64_t x) -> std::int32_t { return x - offset; });
 
+  LOG(INFO) << "Create IndexMap: wait for requests";
+
   // Wait for the MPI_Iallreduce to complete
   MPI_Wait(&request, MPI_STATUS_IGNORE);
+
+  LOG(INFO) << "Create IndexMap: done";
 }
 //-----------------------------------------------------------------------------
 std::array<std::int64_t, 2> IndexMap::local_range() const noexcept
