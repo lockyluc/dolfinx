@@ -151,6 +151,9 @@ get_local_indexing(
     }
   }
 
+  const int mpi_rank = dolfinx::MPI::rank(comm);
+  LOG(INFO) << "Compute neighbour comm [" << mpi_rank << "]";
+
   //---------
   // Create an expanded neighbor_comm from shared_vertices
   const std::map<std::int32_t, std::set<std::int32_t>> shared_vertices
@@ -279,9 +282,10 @@ get_local_indexing(
   }
 
   // Add this rank (self) to the list of sharing processes
-  const int mpi_rank = dolfinx::MPI::rank(comm);
   for (auto& q : shared_entities)
     q.second.insert(mpi_rank);
+
+  LOG(INFO) << "Compute ownership [" << mpi_rank << "]";
 
   //---------
   // Determine ownership
@@ -332,6 +336,8 @@ get_local_indexing(
     }
     assert(c == entity_count);
   }
+
+  LOG(INFO) << "Compute ghost owners [" << mpi_rank << "]";
 
   //---------
   // Communicate global indices to other processes
@@ -398,6 +404,7 @@ get_local_indexing(
   }
 
   MPI_Comm_free(&neighbor_comm);
+  LOG(INFO) << "Free neighbour comm [" << mpi_rank << "]";
 
   auto index_map = std::make_shared<common::IndexMap>(
       comm, num_local,

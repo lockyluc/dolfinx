@@ -161,7 +161,7 @@ compute_nonlocal_dual_graph(
     graph[i] = std::vector<std::int64_t>(local_graph[i].begin(),
                                          local_graph[i].end());
     std::for_each(graph[i].begin(), graph[i].end(),
-                  [offset](auto& n) { n += offset; });
+                  [offset](std::int64_t& n) { n += offset; });
   }
 
   // Get number of MPI processes, and return if mesh is not distributed
