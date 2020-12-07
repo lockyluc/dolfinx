@@ -379,7 +379,8 @@ get_local_indexing(
     const Eigen::Array<std::int32_t, Eigen::Dynamic, 1>& recv_offsets
         = recv_data.offsets();
 
-    assert(recv_global_index_data.size() == (int)recv_index.size());
+    if (recv_global_index_data.size() != (int)recv_index.size())
+      throw std::runtime_error("Error 0 in TopologyComputation");
 
     LOG(INFO) << "Received data size= " << recv_global_index_data.size() << "/"
               << recv_index.size() << " [" << mpi_rank << "]";
@@ -391,14 +392,23 @@ get_local_indexing(
       const std::int32_t idx = recv_index[j];
       if (gi != -1 and idx != -1)
       {
-        assert(local_index[idx] >= num_local);
+        if (idx >= (int)local_index.size())
+          throw std::runtime_error("Error 1 in TopologyComputation");
+        if (local_index[idx] < num_local)
+          throw std::runtime_error("Error 2 in TopologyComputation");
+        if ((local_index[idx] - num_local) >= (int)ghost_indices.size())
+          throw std::runtime_error("Error 3 in TopologyComputation");
+
         ghost_indices[local_index[idx] - num_local] = gi;
         const auto pos = std::upper_bound(
             recv_offsets.data(), recv_offsets.data() + recv_offsets.rows(), j);
         const int owner = std::distance(recv_offsets.data(), pos) - 1;
+        if (owner >= (int)neighbors.size())
+          throw std::runtime_error("Error 4 in TopologyComputation");
         ghost_owners[local_index[idx] - num_local] = neighbors[owner];
       }
     }
+    LOG(INFO) << "Check ghosts [" << mpi_rank << "]";
     for (std::int64_t idx : ghost_indices)
     {
       if (idx == -1)
