@@ -18,6 +18,14 @@ enum class CellType;
 class Topology;
 enum class GhostMode : int;
 
+/// External graph partitioner
+enum Partitioner
+{
+  scotch,
+  parmetis,
+  kahip
+};
+
 /// Tools for partitioning meshes
 namespace Partitioning
 {
@@ -36,11 +44,14 @@ namespace Partitioning
 ///   included.
 /// @param[in] ghost_mode How to overlap the cell partitioning: none,
 ///   shared_facet or shared_vertex
+/// @param[in] partitioner External graph partitioner for partiotining
+///   the mesh
 /// @return Destination processes for each cell on this process
 graph::AdjacencyList<std::int32_t>
 partition_cells(MPI_Comm comm, int n, const mesh::CellType cell_type,
                 const graph::AdjacencyList<std::int64_t>& cells,
-                mesh::GhostMode ghost_mode);
+                mesh::GhostMode ghost_mode,
+                mesh::Partitioner partitioner = mesh::Partitioner::parmetis);
 
 } // namespace Partitioning
 } // namespace dolfinx::mesh

@@ -12,6 +12,7 @@
 #include <dolfinx/common/Timer.h>
 #include <dolfinx/common/log.h>
 #include <dolfinx/graph/AdjacencyList.h>
+#include <dolfinx/graph/ParMETIS.h>
 #include <dolfinx/graph/SCOTCH.h>
 #include <dolfinx/mesh/GraphBuilder.h>
 
@@ -20,8 +21,9 @@ using namespace dolfinx::mesh;
 
 //-----------------------------------------------------------------------------
 graph::AdjacencyList<std::int32_t> Partitioning::partition_cells(
-    MPI_Comm comm, int n, const mesh::CellType cell_type,
-    const graph::AdjacencyList<std::int64_t>& cells, mesh::GhostMode ghost_mode)
+    MPI_Comm comm, int nparts, const mesh::CellType cell_type,
+    const graph::AdjacencyList<std::int64_t>& cells, mesh::GhostMode ghost_mode,
+    mesh::Partitioner partitioner)
 {
   common::Timer timer("Partition cells across processes");
   LOG(INFO) << "Compute partition of cells across processes";
@@ -42,19 +44,30 @@ graph::AdjacencyList<std::int32_t> Partitioning::partition_cells(
       = mesh::GraphBuilder::compute_dual_graph(comm, cells, cell_type);
 
   // Extract data from graph_info
-  const auto [num_ghost_nodes, num_local_edges, num_nonlocal_edges]
+  [[maybe_unused]] const auto [num_ghost_nodes, num_local_edges,
+                               num_nonlocal_edges]
       = graph_info;
 
-  graph::AdjacencyList<SCOTCH_Num> adj_graph(dual_graph);
   std::vector<std::size_t> weights;
 
   // Just flag any kind of ghosting for now
   bool ghosting = (ghost_mode != mesh::GhostMode::none);
 
-  // Call partitioner
-  graph::AdjacencyList<std::int32_t> partition = graph::SCOTCH::partition(
-      comm, n, adj_graph, weights, num_ghost_nodes, ghosting);
-
-  return partition;
+  switch (partitioner)
+  {
+  case Partitioner::scotch:
+    return graph::SCOTCH::partition(
+        comm, nparts, graph::AdjacencyList<SCOTCH_Num>(dual_graph), weights,
+        num_ghost_nodes, ghosting);
+  case Partitioner::parmetis:
+#ifdef HAS_PARMETIS
+    return graph::ParMETIS::partition(
+        comm, nparts, graph::AdjacencyList<idx_t>(dual_graph), ghosting);
+#else
+    throw std::runtime_error("ParMETIS is not avaivalble.");
+#endif
+  default:
+    throw std::runtime_error("Unknown graph partitioner.");
+  }
 }
 //-----------------------------------------------------------------------------
