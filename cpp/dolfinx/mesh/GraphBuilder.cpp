@@ -82,8 +82,9 @@ compute_local_dual_graph_keyed(
   // Sort facets
   std::sort(facets.begin(), facets.end());
 
-  // Find maching facets by comparing facet i and facet i -1
+  // Find maching facets by comparing facet i and facet i-1
   std::size_t num_local_edges = 0;
+  int eq_count = 0;
   std::vector<std::vector<std::int32_t>> local_graph(num_local_cells);
   std::vector<std::pair<std::vector<std::int32_t>, std::int32_t>>
       facet_cell_map;
@@ -97,6 +98,7 @@ compute_local_dual_graph_keyed(
     const int cell_index0 = facets[jj].second;
     if (std::equal(facet1.begin(), facet1.end(), facet0.begin()))
     {
+      ++eq_count;
       // Add edges (directed graph, so add both ways)
       const int cell_index1 = facets[ii].second;
       local_graph[cell_index0].push_back(cell_index1);
@@ -104,13 +106,19 @@ compute_local_dual_graph_keyed(
 
       // Since we've just found a matching pair, the next pair cannot be
       // matching, so advance 1
-      ++i;
+      // ++i;
 
       // Increment number of local edges found
       ++num_local_edges;
     }
     else
     {
+      if (eq_count > 1)
+      {
+        LOG(FATAL) << "More than two matches in facets";
+        throw std::runtime_error("Error in topology");
+      }
+      eq_count = 0;
       // No match, so add facet0 to map
       facet_cell_map.emplace_back(
           std::vector<std::int32_t>(facet0.begin(), facet0.end()), cell_index0);
