@@ -84,7 +84,6 @@ compute_local_dual_graph_keyed(
 
   // Find maching facets by comparing facet i and facet i-1
   std::size_t num_local_edges = 0;
-  int eq_count = 0;
   std::vector<std::vector<std::int32_t>> local_graph(num_local_cells);
   std::vector<std::pair<std::vector<std::int32_t>, std::int32_t>>
       facet_cell_map;
@@ -98,36 +97,27 @@ compute_local_dual_graph_keyed(
     const int cell_index0 = facets[jj].second;
     if (std::equal(facet1.begin(), facet1.end(), facet0.begin()))
     {
-      ++eq_count;
       // Add edges (directed graph, so add both ways)
       const int cell_index1 = facets[ii].second;
       local_graph[cell_index0].push_back(cell_index1);
       local_graph[cell_index1].push_back(cell_index0);
 
+      if ((i + 1) < facets.size())
+      {
+        const int mpi_rank = dolfinx::MPI::rank(MPI_COMM_WORLD);
+        const auto& facet2 = facets[i + 1].first;
+        if (std::equal(facet1.begin(), facet1.end(), facet2.begin()))
+          LOG(ERROR) << "Found third matching facet on process " << mpi_rank;
+      }
       // Since we've just found a matching pair, the next pair cannot be
       // matching, so advance 1
-      // ++i;
+      ++i;
 
       // Increment number of local edges found
       ++num_local_edges;
     }
     else
     {
-      if (eq_count > 1)
-      {
-        const int mpi_rank = dolfinx::MPI::rank(MPI_COMM_WORLD);
-        LOG(ERROR) << "More than two matches in facets on process [" << mpi_rank
-                   << "]";
-        std::string s;
-        for (std::size_t k = i - 5; k <= i; ++k)
-        {
-          s = "";
-          for (auto w : facets[k].first)
-            s += std::to_string(w) + " ";
-          LOG(ERROR) << s << "] " << facets[k].second;
-        }
-      }
-      eq_count = 0;
       // No match, so add facet0 to map
       facet_cell_map.emplace_back(
           std::vector<std::int32_t>(facet0.begin(), facet0.end()), cell_index0);
