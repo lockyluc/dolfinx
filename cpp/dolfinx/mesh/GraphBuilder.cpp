@@ -115,8 +115,17 @@ compute_local_dual_graph_keyed(
     {
       if (eq_count > 1)
       {
-        LOG(FATAL) << "More than two matches in facets";
-        throw std::runtime_error("Error in topology");
+        const int mpi_rank = dolfinx::MPI::rank(MPI_COMM_WORLD);
+        LOG(ERROR) << "More than two matches in facets on process [" << mpi_rank
+                   << "]";
+        std::string s;
+        for (std::size_t k = i - 5; k <= i; ++k)
+        {
+          s = "";
+          for (auto w : facets[k].first)
+            s += std::to_string(w) + " ";
+          LOG(ERROR) << s << "] " << facets[k].second;
+        }
       }
       eq_count = 0;
       // No match, so add facet0 to map
