@@ -380,7 +380,7 @@ get_local_indexing(
         = recv_data.offsets();
 
     if (recv_global_index_data.size() != (int)recv_index.size())
-      throw std::runtime_error("Error 0 in TopologyComputation");
+      LOG(ERROR) << "Error 0 in TopologyComputation";
 
     LOG(INFO) << "Received data size= " << recv_global_index_data.size() << "/"
               << recv_index.size() << " [" << mpi_rank << "]";
@@ -393,18 +393,18 @@ get_local_indexing(
       if (gi != -1 and idx != -1)
       {
         if (idx >= (int)local_index.size())
-          throw std::runtime_error("Error 1 in TopologyComputation");
+          LOG(ERROR) << "Error 1 in TopologyComputation";
         if (local_index[idx] < num_local)
-          throw std::runtime_error("Error 2 in TopologyComputation");
+          LOG(ERROR) << "Error 2 in TopologyComputation";
         if ((local_index[idx] - num_local) >= (int)ghost_indices.size())
-          throw std::runtime_error("Error 3 in TopologyComputation");
+          LOG(ERROR) << "Error 3 in TopologyComputation";
 
         ghost_indices[local_index[idx] - num_local] = gi;
         const auto pos = std::upper_bound(
             recv_offsets.data(), recv_offsets.data() + recv_offsets.rows(), j);
         const int owner = std::distance(recv_offsets.data(), pos) - 1;
         if (owner >= (int)neighbors.size())
-          throw std::runtime_error("Error 4 in TopologyComputation");
+          LOG(ERROR) << "Error 4 in TopologyComputation";
         ghost_owners[local_index[idx] - num_local] = neighbors[owner];
       }
     }
@@ -413,8 +413,9 @@ get_local_indexing(
     {
       if (idx == -1)
       {
-        throw std::runtime_error(
-            "Error in topology computation - unassigned entity ownership");
+        LOG(ERROR) << "Error 5 - Unassigned entity on rank " << mpi_rank;
+        //   throw std::runtime_error(
+        //     "Error in topology computation - unassigned entity ownership");
       }
     }
   }
