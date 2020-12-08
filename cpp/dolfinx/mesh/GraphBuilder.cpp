@@ -217,6 +217,8 @@ compute_nonlocal_dual_graph(
       = dolfinx::MPI::all_to_all(
           mpi_comm, graph::AdjacencyList<std::int64_t>(send_buffer));
 
+  LOG(INFO) << "Start match process";
+
   // Clear send buffer
   send_buffer = std::vector<std::vector<std::int64_t>>(num_processes);
 
@@ -263,6 +265,8 @@ compute_nonlocal_dual_graph(
       }
     }
   }
+
+  LOG(INFO) << "Completed match process";
 
   // Send matches to other processes
   const Eigen::Array<std::int64_t, Eigen::Dynamic, 1> cell_list

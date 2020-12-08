@@ -390,6 +390,10 @@ get_local_indexing(
     {
       const std::int64_t gi = recv_global_index_data[j];
       const std::int32_t idx = recv_index[j];
+
+      if (gi == -1 and idx != -1)
+        LOG(INFO) << "On rank: [" << mpi_rank << "] got gi=-1 at idx=" << idx;
+
       if (gi != -1 and idx != -1)
       {
         if (idx >= (int)local_index.size())
@@ -409,11 +413,12 @@ get_local_indexing(
       }
     }
     LOG(INFO) << "Check ghosts [" << mpi_rank << "]";
-    for (std::int64_t idx : ghost_indices)
+    for (std::size_t i = 0; i < ghost_indices.size(); ++i)
     {
-      if (idx == -1)
+      if (ghost_indices[i] == -1)
       {
-        LOG(ERROR) << "Error 5 - Unassigned entity on rank " << mpi_rank;
+        LOG(FATAL) << "Unassigned entity on rank " << mpi_rank << " at entry "
+                   << i;
         //   throw std::runtime_error(
         //     "Error in topology computation - unassigned entity ownership");
       }
